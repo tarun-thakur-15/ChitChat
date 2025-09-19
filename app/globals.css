@@ -80,3 +80,81 @@
     @apply bg-background text-foreground;
   }
 }
+
+.hamburger {
+  display: inline-block;
+  height: 26px;
+  margin-right: 27px;
+
+  a.main-nav-toggle {
+    display: block;
+    width: 23px;
+    height: 16px;
+
+    position: absolute;
+    top: 30px;
+
+    &:after,
+    &:before {
+      content: "";
+      position: absolute;
+      top: 0;
+      height: 0;
+      border-bottom: 3px solid #794BEE;
+      width: 100%;
+      left: 0;
+      right: 0;
+      transition: all ease-out 0.3s;
+      border-radius: 20px;
+    }
+
+    &:after {
+      top: 100%;
+    }
+
+    i {
+      display: block;
+      text-indent: 100%;
+      overflow: hidden;
+      white-space: nowrap;
+      height: 2px;
+      background-color: #794BEE;
+      width: 100%;
+      position: absolute;
+      top: 50%;
+      transition: all ease-out 0.1s;
+      border-radius: 20px;
+    }
+
+    &.active-menu {
+      &:after {
+        transform: rotate(-45deg);
+        transform-origin: center;
+        top: 50%;
+        z-index: 100;
+      }
+
+      &:before {
+        transform: rotate(45deg);
+        transform-origin: center;
+        top: 50%;
+        z-index: 100;
+      }
+
+      i {
+        opacity: 0;
+      }
+    }
+  }
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none; 
+}
+.scrollbar-hide {
+  -ms-overflow-style: none;  
+  scrollbar-width: none;  
+}
+
+.data-\[state\=unchecked\]\:bg-input[data-state=unchecked] {
+  background-color: hsl(253deg 61.88% 59.52%) !important;
+}

@@ -3,22 +3,16 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 import {
-  ArrowLeft,
   MessageCircle,
   UserPlus,
-  MoreHorizontal,
-  MapPin,
   Calendar,
   Users,
   Clock,
 } from "lucide-react";
-import { ThemeToggle } from "@/components/theme-toggle";
-import { useRouter } from "next/navigation";
 
 export default function ProfilePage() {
   const [isFriend, setIsFriend] = useState(false);
   const [requestSent, setRequestSent] = useState(false);
-  const router = useRouter();
 
   const handleSendRequest = () => {
     setRequestSent(true);
@@ -38,28 +32,7 @@ export default function ProfilePage() {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       {/* Header */}
-      <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
-        <div className="flex items-center justify-between max-w-6xl mx-auto px-3 sm:px-6 h-14">
-          {/* Left section */}
-          <div className="flex items-center gap-2 sm:gap-4">
-            <button onClick={() => router.back()} className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
-              <ArrowLeft className="w-5 h-5 text-gray-600 dark:text-gray-400" />
-            </button>
-            <h1 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white truncate">
-              Profile
-            </h1>
-          </div>
-
-          {/* Right section */}
-          <div className="flex items-center gap-1 sm:gap-2">
-            <ThemeToggle />
-            <button className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
-              <MoreHorizontal className="w-5 h-5 text-gray-600 dark:text-gray-400" />
-            </button>
-          </div>
-        </div>
-      </div>
-
+     
       <div className="max-w-4xl mx-auto p-4">
         {/* Profile Card */}
         <motion.div
@@ -211,13 +184,10 @@ export default function ProfilePage() {
           </h2>
           <div className="space-y-3">
             <div className="flex items-center space-x-3 text-gray-600 dark:text-gray-400">
-              <Calendar className="w-5 h-5" />
-              <span>Joined ChatWave in January 2023</span>
+             
+              <span>Lorem ipsum dolor sit amet consectetur adipisicing elit. Et, corporis mollitia maiores, sed, sequi asperiores accusantium illum nulla officia voluptas repellat voluptatem veritatis? Et corporis quis minus delectus laborum, consequuntur facere nihil id eaque quia minima vel non incidunt debitis labore vitae, aliquam odio eius ratione amet libero. Labore atque architecto natus aliquam harum voluptas veniam veritatis id vero perferendis commodi, nostrum laborum quisquam iure neque, deleniti odit error. Veritatis laborum quae numquam fugiat commodi, dignissimos illo temporibus cupiditate est amet totam, quidem asperiores, dolorum eveniet neque aliquam ratione delectus blanditiis aliquid. Tenetur praesentium maxime eum quam esse voluptatibus, suscipit deleniti, dolorum, quisquam labore fuga reprehenderit eos. Assumenda et nostrum voluptate nesciunt itaque adipisci mollitia dolorum facilis hic natus nam excepturi repellat qui sunt a accusantium doloribus vel quia consequatur, tempore accusamus enim officia sed. Distinctio hic exercitationem obcaecati dolor assumenda voluptatum fuga, quis quos recusandae modi cum qui quod.</span>
             </div>
-            <div className="flex items-center space-x-3 text-gray-600 dark:text-gray-400">
-              <Users className="w-5 h-5" />
-              <span>{mockUser.friendsCount} friends on ChatWave</span>
-            </div>
+
           </div>
         </motion.div>
       </div>

@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { motion } from "framer-motion";
 import Cookies from "js-cookie";
+import MediaPreviewModal from "./MediaPreviewModal";
 import {
   ArrowLeft,
   Phone,
@@ -13,6 +14,10 @@ import {
   Image,
   File,
   Smile,
+  FileText,
+  ImageIcon,
+  Music,
+  Contact,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -26,10 +31,19 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ChatBubble } from "@/components/chat-bubble";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 
 //IMAGES
-import Superman from "../app/images/superman_logo.png";
-import Heart from "../app/images/blueheart.png";
+import Superman from "../app/images/superman_logo.webp";
+import Heart from "../app/images/blueheart.webp";
+import Cat from "../app/images/cat.webp";
+import Couple from "../app/images/couple.webp";
 
 interface Message {
   id: string;
@@ -88,6 +102,8 @@ const mockMessages: Message[] = [
   },
 ];
 
+type FileType = "photo" | "video" | "doc" | "audio" | null;
+
 export default function ChatMainComponent() {
   const [message, setMessage] = useState("");
   const [isTyping, setIsTyping] = useState(false);
@@ -127,7 +143,86 @@ export default function ChatMainComponent() {
   const handleThemeChange = (newTheme: string) => {
     Cookies.set("chatTheme", newTheme);
     setTheme(newTheme);
-    window.location.reload(); // optional: reload to apply theme instantly
+  };
+
+  // --------media pin dialog box-----------
+  const [mediaBoxOpen, setMediaBoxOpen] = useState(false);
+
+  // Refs for hidden inputs
+  const photoInputRef = useRef<HTMLInputElement>(null);
+  const docInputRef = useRef<HTMLInputElement>(null);
+  const videoInputRef = useRef<HTMLInputElement>(null);
+  const audioInputRef = useRef<HTMLInputElement>(null);
+
+  // Handlers for file selection
+  const handleFileSelect = (
+    e: React.ChangeEvent<HTMLInputElement>,
+    type: string
+  ) => {
+    console.log("handleFileSelect called");
+    const files = e.target.files;
+    if (files && files.length > 0) {
+      console.log(`${type} selected:`, files);
+      // Here you can send files to backend or chat
+      setMediaBoxOpen(false);
+    }
+  };
+
+  const mediaOptions = [
+    {
+      icon: <FileText className="w-6 h-6 text-blue-500" />,
+      label: "Document",
+      onClick: () => handlePickFile("doc"),
+    },
+    {
+      icon: <ImageIcon className="w-6 h-6 text-green-500" />,
+      label: "Photos",
+      onClick: () => handlePickFile("photo"),
+    },
+    {
+      icon: <Video className="w-6 h-6 text-red-500" />,
+      label: "Videos",
+      onClick: () => handlePickFile("video"),
+    },
+    {
+      icon: <Music className="w-6 h-6 text-purple-500" />,
+      label: "Audio",
+      onClick: () => handlePickFile("audio"),
+    },
+    {
+      icon: <Contact className="w-6 h-6 text-yellow-500" />,
+      label: "Friends",
+      onClick: () => alert("Contact upload coming soon..."),
+    },
+  ];
+
+  // ----------for media preview-----------
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [fileType, setFileType] = useState<FileType>(null);
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Trigger file picker
+  const handlePickFile = (type: FileType) => {
+    setFileType(type);
+    fileInputRef.current?.click();
+  };
+
+  // Handle file selection
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      setSelectedFiles(Array.from(e.target.files));
+      setMediaBoxOpen(false);
+      setPreviewOpen(true);
+    }
+  };
+
+  // Send files (simulate)
+  const handleMediaSend = () => {
+    console.log("Sending:", selectedFiles);
+    setPreviewOpen(false);
+    setSelectedFiles([]);
   };
 
   return (
@@ -186,7 +281,15 @@ export default function ChatMainComponent() {
                     <DropdownMenuItem
                       onClick={() => handleThemeChange("Hearts")}
                     >
-                      Hears 💗
+                      Hears
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleThemeChange("Cat")}>
+                      Cat
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => handleThemeChange("Couple")}
+                    >
+                      Couple
                     </DropdownMenuItem>
                     <DropdownMenuItem
                       onClick={() => {
@@ -229,6 +332,20 @@ export default function ChatMainComponent() {
                 backgroundPosition: "center",
                 backgroundSize: "250px",
               }
+            : theme === "Cat"
+            ? {
+                backgroundImage: `url(${Cat.src})`,
+                backgroundSize: "cover",
+                backgroundRepeat: "no-repeat",
+                backgroundPosition: "center",
+              }
+            : theme === "Couple"
+            ? {
+                backgroundImage: `url(${Couple.src})`,
+                backgroundSize: "cover",
+                backgroundRepeat: "no-repeat",
+                backgroundPosition: "center",
+              }
             : {}
         }
       >
@@ -245,13 +362,57 @@ export default function ChatMainComponent() {
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Input */}
+      {/* media box and message Input */}
       <div className="bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 p-4">
         <div className="flex items-center space-x-3">
-          <button className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl transition-colors">
-            <Paperclip className="w-5 h-5 text-gray-600 dark:text-gray-400" />
-          </button>
+          {/* ----media box---- */}
+          <Dialog open={mediaBoxOpen} onOpenChange={setMediaBoxOpen}>
+            <DialogTrigger asChild>
+              <button className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl transition-colors">
+                <Paperclip className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+              </button>
+            </DialogTrigger>
 
+            <DialogContent className="sm:max-w-md">
+              <DialogHeader>
+                <DialogTitle>Attach</DialogTitle>
+              </DialogHeader>
+
+              <div className="grid grid-cols-2 gap-4 mt-4">
+                {mediaOptions.map((item, idx) => (
+                  <button
+                    key={idx}
+                    onClick={item.onClick}
+                    className="flex flex-col items-center justify-center gap-2 p-4 rounded-xl border hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                  >
+                    {item.icon}
+                    <span className="text-sm font-medium">{item.label}</span>
+                  </button>
+                ))}
+              </div>
+              {/* Hidden Inputs */}
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleFileChange}
+                accept={
+                  fileType === "photo"
+                    ? ".png,.jpg,.jpeg,.webp,.svg,.ico"
+                    : fileType === "video"
+                    ? ".mp4,.mkv,.mov,.avi"
+                    : fileType === "doc"
+                    ? ".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt"
+                    : fileType === "audio"
+                    ? ".mp3,.wav,.ogg,.aac"
+                    : "*/*"
+                }
+                className="hidden"
+                multiple
+              />
+            </DialogContent>
+          </Dialog>
+
+          {/* message input */}
           <div className="flex-1 relative">
             <textarea
               value={message}
@@ -275,6 +436,14 @@ export default function ChatMainComponent() {
           >
             <Send className="w-5 h-5" />
           </motion.button>
+          {/* Preview Modal */}
+          <MediaPreviewModal
+            open={previewOpen}
+            onClose={() => setPreviewOpen(false)}
+            onSend={handleMediaSend}
+            fileType={fileType}
+            selectedFiles={selectedFiles}
+          />
         </div>
       </div>
     </div>

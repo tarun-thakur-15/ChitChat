@@ -48,7 +48,25 @@ export function ChatBubble({ message }: ChatBubbleProps) {
 
       case "file":
         return (
-          <div className="flex items-center space-x-3 p-3 bg-gray-100 dark:bg-gray-600 rounded-xl min-w-[200px]">
+          <div className={`flex items-center space-x-3 p-3 
+          ${
+            theme === "Superman"
+              ? message.isOwn
+                ? "bg-yellow-400 text-gray-900 rounded-br-sm" 
+                : "bg-blue-400 text-white rounded-bl-sm"
+              : theme === "Hearts" && message.isOwn
+              ? "bg-purple-900"
+              : theme === "Hearts" && !message.isOwn
+              ? "bg-[#1b5105]"
+              : theme === "Couple" && message.isOwn
+              ? "bg-[#063394]"
+              : theme === "Couple" && !message.isOwn
+              ? "bg-green-800"
+              : message.isOwn
+              ? "bg-blue-600 border-blue-200 text-white rounded-br-sm" 
+              : "bg-white dark:bg-gray-600 rounded-bl-sm border border-gray-200"
+          }
+           rounded-xl min-w-[200px]`}>
             <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center">
               <FileText className="w-5 h-5 text-white" />
             </div>
@@ -69,16 +87,15 @@ export function ChatBubble({ message }: ChatBubbleProps) {
       default:
         return (
           <p
-            // className={`text-gray-900 ${
-            //   theme === "Superman" ? "text-black" : "text-gray-900 dark:text-white"
-            // }  whitespace-pre-wrap break-words`}
             className={`text-gray-900 ${
               theme === "Superman"
                 ? message.isOwn
                   ? "text-black"
                   : "text-gray-900 dark:text-white"
+                : theme === "Hearts"
+                ? "text-white"
                 : message.isOwn
-                ? "text-gray-900 dark:text-white"
+                ? " text-white"
                 : "text-gray-900 dark:text-white"
             }  whitespace-pre-wrap break-words`}
           >
@@ -100,20 +117,33 @@ export function ChatBubble({ message }: ChatBubbleProps) {
         }`}
       >
         <div
-          className={`px-4 py-2 rounded-2xl shadow-sm ${
+          className={`relative px-4 py-2 rounded-2xl shadow-sm ${
             theme === "Superman"
               ? message.isOwn
                 ? "bg-yellow-400 text-gray-900 rounded-br-sm" // our msg → yellow
                 : "bg-blue-400 text-white rounded-bl-sm" // others msg → blue
-              : theme === "Hearts" && message.isOwn 
+              : theme === "Hearts" && message.isOwn
               ? "bg-purple-900"
               : theme === "Hearts" && !message.isOwn
-              ? "bg-[#1b5105]" 
+              ? "bg-[#1b5105]"
+              : theme === "Couple" && message.isOwn
+              ? "bg-[#063394]"
+              : theme === "Couple" && !message.isOwn
+              ? "bg-green-800"
               : message.isOwn
               ? "bg-blue-600 text-white rounded-br-sm" // default our msg
               : "bg-white dark:bg-gray-700 rounded-bl-sm border border-gray-200 dark:border-gray-600" // default others
           }`}
         >
+          {/* Emoji overlay for Couple theme */}
+          {theme === "Couple" && (
+            <>
+              <span className="absolute -top-2 -left-2 text-2xl">💕</span>
+              <span className="absolute -top-2 -right-2 text-2xl">💕</span>
+              <span className="absolute -bottom-2 -right-2 text-2xl">💕</span>
+              <span className="absolute -bottom-2 -left-2 text-2xl">💕</span>
+            </>
+          )}
           {renderContent()}
         </div>
 
@@ -122,8 +152,13 @@ export function ChatBubble({ message }: ChatBubbleProps) {
             message.isOwn ? "justify-end" : "justify-start"
           }`}
         >
-          <span className={`text-xs ${
-            theme === "Hearts" || "Superman" ? "text-white" : "text-gray-500 dark:text-gray-400"}`}>
+          <span
+            className={`text-xs ${
+              theme === "Hearts" || "Superman"
+                ? "text-white"
+                : "text-gray-500 dark:text-gray-400"
+            }`}
+          >
             {formatDistanceToNow(message.timestamp, { addSuffix: true })}
           </span>
           {message.isOwn && <StatusIcon />}

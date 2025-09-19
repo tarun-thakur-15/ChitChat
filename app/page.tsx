@@ -3,6 +3,12 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 import {
+  signupApi,
+  loginApi,
+  forgotPasswordApi,
+  verifyOtpApi,
+} from "./services/api";
+import {
   MessageSquare,
   Users,
   UserPlus,
@@ -10,7 +16,6 @@ import {
   Eye,
   EyeOff,
 } from "lucide-react";
-import { ThemeToggle } from "@/components/theme-toggle";
 import OTPInput from "react-otp-input";
 import { useRouter } from "next/navigation";
 
@@ -23,21 +28,71 @@ export default function AuthPage() {
     username: "",
     fullName: "",
     password: "",
+    email: "",
+    otp: "",
   });
   const router = useRouter();
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    // Handle authentication logic here
-    console.log("Auth data:", formData);
-  };
+const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+
+  try {
+    if (isLogin) {
+      // ================= LOGIN FLOW =================
+      if (loginFormLevel === 1) {
+        const data = await loginApi({
+          identifier: formData.username,
+          password: formData.password,
+        });
+        console.log("Login successful:", data);
+        router.push("/dashboard");
+
+      } else if (loginFormLevel === 2) {
+        const data = await forgotPasswordApi({
+          identifier: formData.username,
+        });
+        console.log("OTP sent for reset:", data);
+        setLoginFormLevel(3);
+
+      } else if (loginFormLevel === 3) {
+        const data = await verifyOtpApi({
+          identifier: formData.username,
+          code: formData.otp,
+          purpose: "password_reset",
+        });
+        console.log("Password reset OTP verified:", data);
+        router.push("/dashboard");
+
+      }
+    } else {
+      // ================= SIGNUP FLOW =================
+      if (signupFormLevel === 1) {
+        const data = await signupApi({
+          fullName: formData.fullName,
+          username: formData.username,
+          email: formData.email,
+          password: formData.password,
+        });
+        console.log("Signup OTP sent:", data);
+        setSignupFormLevel(2);
+
+      } else if (signupFormLevel === 2) {
+        const data = await verifyOtpApi({
+          identifier: formData.username,
+          code: formData.otp,
+          purpose: "signup",
+        });
+        console.log("Signup OTP verified:", data);
+        router.push("/dashboard");
+      }
+    }
+  } catch (err: any) {
+    console.error("API Error:", err.response?.data || err.message);
+  }
+};
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 flex items-center justify-center p-4">
-      <div className="absolute top-4 right-4">
-        <ThemeToggle />
-      </div>
-
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -174,7 +229,6 @@ export default function AuthPage() {
                     {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
                   </button>
                   <motion.button
-                    onClick={() => setLoginFormLevel(3)}
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
                     type="submit"
@@ -191,7 +245,107 @@ export default function AuthPage() {
                   Enter OTP
                 </label>
                 <OTPInput
-                  onChange={() => null}
+                  value={formData.otp}
+                  onChange={(otp: string) => setFormData({ ...formData, otp })}
+                  numInputs={6}
+                  renderInput={(props) => (
+                    <input
+                      {...props}
+                      className="text-center text-lg border border-gray-300 rounded focus:outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 !w-5 !h-10 sm:!w-12 sm:!h-12 md:!w-14 md:!h-14"
+                    />
+                  )}
+                  shouldAutoFocus
+                  containerStyle="flex gap-[2px] md:gap-3 w-full justify-between"
+                />
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  type="submit"
+                  className="mt-6 w-full bg-blue-600 hover:bg-blue-700 text-white py-3 px-4 rounded-xl font-medium transition-colors focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800"
+                >
+                  <Lock className="w-5 h-5 inline mr-2" />
+                  Verify OTP
+                </motion.button>
+              </form>
+            ) : null)}
+
+          {!isLogin &&
+            (signupFormLevel === 1 ? (
+              <form className="space-y-4">
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  exit={{ opacity: 0, height: 0 }}
+                >
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Create Full Name
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.fullName}
+                    onChange={(e) =>
+                      setFormData({ ...formData, fullName: e.target.value })
+                    }
+                    className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                    placeholder="Enter your full name"
+                    required
+                  />
+                  <label className="mt-2 block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Username
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.username}
+                    onChange={(e) =>
+                      setFormData({ ...formData, username: e.target.value })
+                    }
+                    className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                    placeholder="Enter your username"
+                    required
+                  />
+
+                  <label className="mt-2 block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Password
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={showPassword ? "text" : "password"}
+                      value={formData.password}
+                      onChange={(e) =>
+                        setFormData({ ...formData, password: e.target.value })
+                      }
+                      className="w-full px-4 py-3 pr-12 rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                      placeholder="Enter your password"
+                      required
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-11 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                    >
+                      {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                    </button>
+                    <motion.button
+                      
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      type="submit"
+                      className="mt-6 w-full bg-blue-600 hover:bg-blue-700 text-white py-3 px-4 rounded-xl font-medium transition-colors focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800"
+                    >
+                      <Lock className="w-5 h-5 inline mr-2" />
+                      Get OTP
+                    </motion.button>
+                  </div>
+                </motion.div>
+              </form>
+            ) : signupFormLevel === 2 ? (
+              <form className="space-y-4">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Enter OTP
+                </label>
+                <OTPInput
+                value={formData.otp}
+                  onChange={(otp: string) => setFormData({ ...formData, otp })}
                   numInputs={6}
                   renderInput={(props) => (
                     <input
@@ -214,106 +368,6 @@ export default function AuthPage() {
                 </motion.button>
               </form>
             ) : null)}
-
-          {!isLogin && (
-            signupFormLevel === 1 ? (
-            <form className="space-y-4">
-              <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: "auto" }}
-                exit={{ opacity: 0, height: 0 }}
-              >
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Create Full Name
-                </label>
-                <input
-                  type="text"
-                  value={formData.fullName}
-                  onChange={(e) =>
-                    setFormData({ ...formData, fullName: e.target.value })
-                  }
-                  className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-                  placeholder="Enter your full name"
-                  required
-                />
-                <label className="mt-2 block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Username
-                </label>
-                <input
-                  type="text"
-                  value={formData.username}
-                  onChange={(e) =>
-                    setFormData({ ...formData, username: e.target.value })
-                  }
-                  className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-                  placeholder="Enter your username"
-                  required
-                />
-
-                <label className="mt-2 block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Password
-                </label>
-                <div className="relative">
-                  <input
-                    type={showPassword ? "text" : "password"}
-                    value={formData.password}
-                    onChange={(e) =>
-                      setFormData({ ...formData, password: e.target.value })
-                    }
-                    className="w-full px-4 py-3 pr-12 rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-                    placeholder="Enter your password"
-                    required
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-11 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-                  >
-                    {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-                  </button>
-                  <motion.button
-                  onClick={()=> setSignupFormLevel(2)}
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    type="submit"
-                    className="mt-6 w-full bg-blue-600 hover:bg-blue-700 text-white py-3 px-4 rounded-xl font-medium transition-colors focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800"
-                  >
-                    <Lock className="w-5 h-5 inline mr-2" />
-                    Get OTP
-                  </motion.button>
-                </div>
-              </motion.div>
-            </form>
-            ) : signupFormLevel === 2 ? (
-               <form className="space-y-4">
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Enter OTP
-                </label>
-                <OTPInput
-                  onChange={() => null}
-                  numInputs={6}
-                  renderInput={(props) => (
-                    <input
-                      {...props}
-                      className="text-center text-lg border border-gray-300 rounded focus:outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 !w-5 !h-10 sm:!w-12 sm:!h-12 md:!w-14 md:!h-14"
-                    />
-                  )}
-                  shouldAutoFocus
-                  containerStyle="flex gap-[2px] md:gap-3 w-full justify-between"
-                />
-                <motion.button
-                  onClick={() => router.push("/dashboard")}
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  // type="submit"
-                  className="mt-6 w-full bg-blue-600 hover:bg-blue-700 text-white py-3 px-4 rounded-xl font-medium transition-colors focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800"
-                >
-                  <Lock className="w-5 h-5 inline mr-2" />
-                  Verify OTP
-                </motion.button>
-              </form>
-            ) : null
-          )}
 
           <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
             <div className="flex items-center justify-center space-x-6 text-sm text-gray-600 dark:text-gray-400">

@@ -6,11 +6,46 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { LogOut, Settings, ChevronDown } from "lucide-react";
+import {
+  LogOut,
+  Settings,
+  ChevronDown,
+  User,
+  ArrowRight,
+  Bell,
+} from "lucide-react";
 import React, { useState } from "react";
+import { ThemeToggle } from "@/components/theme-toggle";
+import { useTheme } from "next-themes";
+import { Switch } from "@/components/ui/switch";
+import Link from "next/link";
 
 export default function Header() {
-  const [isLoggedin, setIsLoggedin] = useState(false);
+  const [isLoggedin, setIsLoggedin] = useState(true);
+  const [activeMenu, setActiveMenu] = useState(false);
+  const [isOpen, setIsOpen] = useState(false);
+  const [isHamburgerMenuVisible, setIsHamburgerMenuVisible] = useState(false);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const { theme, setTheme } = useTheme();
+
+  const isDark = theme === "dark";
+  const toggleMenu = () => {
+    setIsOpen(!isOpen);
+  };
+  const handleClick = (e: any) => {
+    setIsHamburgerMenuVisible(!isHamburgerMenuVisible);
+    // e.preventDefault();
+    setActiveMenu(!activeMenu);
+    toggleMenu();
+  };
+  const navItems = [
+    {
+      id: "/notifications",
+      label: "Notifications",
+      icon: <Bell className="w-5 h-5 text-gray-600 dark:text-gray-400" />,
+    },
+    { id: "/settings", label: "Settings", icon: <Settings /> },
+  ];
   return (
     <header className="w-full border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
       {isLoggedin ? (
@@ -28,7 +63,7 @@ export default function Header() {
           {/* Right: Profile + Dropdown */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <button className="flex items-center gap-2 focus:outline-none">
+              <button className="hidden lg:flex items-center gap-2 focus:outline-none">
                 <img
                   src="https://github.com/shadcn.png"
                   alt="Profile"
@@ -42,7 +77,7 @@ export default function Header() {
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-40">
               <DropdownMenuItem className="flex items-center gap-2 cursor-pointer">
-                <Settings className="w-4 h-4" />
+                <Settings className="hidden lg:block w-4 h-4" />
                 <span>Settings</span>
               </DropdownMenuItem>
               <DropdownMenuItem className="flex items-center gap-2 text-red-600 cursor-pointer">
@@ -50,6 +85,74 @@ export default function Header() {
                 <span>Logout</span>
               </DropdownMenuItem>
             </DropdownMenuContent>
+            {/* ---------hamburger div for mobile screens---------- */}
+            <div className="hamburger lg:hidden z-50">
+              <a
+                className={`${activeMenu ? "active-menu" : ""} main-nav-toggle`}
+                href="#main-nav"
+                onClick={handleClick}
+              >
+                <i>Menu</i>
+              </a>
+            </div>
+            {/* -------sliding div onclicking hamburger icon--------- */}
+            {isHamburgerMenuVisible && (
+              <div
+                data-testid="mobile-menu"
+                className={` fixed top-0 left-0 h-full w-full bg-white dark:bg-gray-900 shadow-lg transform transition-transform duration-0 z-40 ${
+                  isOpen ? "translate-x-0" : "-translate-x-full"
+                }`}
+              >
+                <div className="flex flex-col justify-center items-center  space-y-6  h-full">
+                  <div className="h-[calc(100vh-115px)] flex-col justify-start items-start gap-[14px] flex w-full px-[20px] pt-[90px] overflow-y-scroll">
+                    <div className="flex md:hidden items-center space-x-2">
+                      <div className="w-8 h-8 bg-gradient-to-r from-teal-600 to-blue-600 rounded-full flex items-center justify-center">
+                        <User className="h-4 w-4 text-white" />
+                      </div>
+                      <span className="block text-sm font-medium text-gray-700 dark:text-white">
+                        User
+                      </span>
+                    </div>
+                    {navItems.map((tab: any, index: number) => (
+                      <Link
+                        key={index}
+                        href={tab.id}
+                        className="self-stretch border-b-[#edeef0] justify-between items-center inline-flex"
+                        onClick={handleClick}
+                      >
+                        <span className="text-center text-[#1e1f23] dark:text-white text-sm font-medium  tracking-wide ">
+                          {tab.label}
+                        </span>
+                        <div className="h-[24px] w-[24px]">
+                          <ArrowRight className="w-5 h-5 fill-[#2F3034]" />
+                        </div>
+                      </Link>
+                    ))}
+
+                    <button className="self-stretch border-b-[#edeef0] justify-between items-center inline-flex text-center text-[#1e1f23] text-sm font-medium  tracking-wide dark:text-white">
+                      Logout
+                    </button>
+                    <div className="flex items-center gap-2 md:hidden">
+                      <span className="text-sm">
+                        {isDark ? "Dark" : "Light"}
+                      </span>
+                      <Switch
+                        checked={isDark}
+                        onCheckedChange={(checked) =>
+                          setTheme(checked ? "dark" : "light")
+                        }
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+            <div className="hidden lg:flex">
+              <ThemeToggle />
+              <button className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                <Bell className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+              </button>
+            </div>
           </DropdownMenu>
         </div>
       ) : (
@@ -61,6 +164,9 @@ export default function Header() {
             <span className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white">
               ChatWave
             </span>
+          </div>
+          <div className="flex">
+            <ThemeToggle />
           </div>
         </div>
       )}

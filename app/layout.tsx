@@ -1,15 +1,16 @@
-import './globals.css';
-import type { Metadata } from 'next';
-import { Inter } from 'next/font/google';
-import { ThemeProvider } from '@/components/theme-provider';
-import { Toaster } from 'react-hot-toast';
-import Header from '@/components/header';
-
-const inter = Inter({ subsets: ['latin'] });
+import "./globals.css";
+import type { Metadata } from "next";
+import { Inter } from "next/font/google";
+import { ThemeProvider } from "@/components/theme-provider";
+// import { Toaster } from "react-hot-toast";
+import { Toaster } from "sonner";
+import Header from "@/components/header";
+// import ProfileProgress from "@/components/ProfileProgress";
+const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: 'ChatWave - Modern Chat Platform',
-  description: 'Connect, chat, and share with friends on ChatWave',
+  title: "ChatWave - Modern Chat Platform",
+  description: "Connect, chat, and share with friends on ChatWave",
 };
 
 export default function RootLayout({
@@ -26,13 +27,16 @@ export default function RootLayout({
           enableSystem={false}
           disableTransitionOnChange={false}
         >
-          <Header/>
+          {/* <div className="hidden lg:block absolute top-16 right-7">
+            <ProfileProgress hasPhoto={true} hasAbout={false} />
+          </div> */}
+          <Header />
           {children}
           <Toaster
-            position="top-right"
+            richColors position="top-right"
             toastOptions={{
               duration: 3000,
-              className: 'dark:bg-gray-800 dark:text-white',
+              className: "dark:bg-gray-800 dark:text-white",
             }}
           />
         </ThemeProvider>
