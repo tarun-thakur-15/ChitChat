@@ -4,7 +4,7 @@ import { motion } from "framer-motion";
 import { Check, CheckCheck, Download, FileText } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import Cookies from "js-cookie";
-interface Message {
+export interface Message {
   id: string;
   content: string;
   type: "text" | "image" | "file";

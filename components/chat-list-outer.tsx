@@ -14,8 +14,17 @@ import { ChatList } from "@/components/chat-list";
 import { FriendRequests } from "@/components/friend-requests-mini";
 import { FriendsList } from "@/components/friends-list";
 import { useState, useEffect } from "react";
+import { Conversation, UserMini } from "@/app/services/schema";
 
-export default function ChatListOuter() {
+interface ChatListOuterProps {
+  conversations: Conversation[];
+  friendsWithoutConversation: UserMini[];
+}
+
+export default function ChatListOuter({
+  conversations,
+  friendsWithoutConversation,
+}: ChatListOuterProps) {
   type Tab = "chats" | "requests" | "friends";
   const tabs = [
     { id: "chats" as const, label: "Chats", icon: MessageSquare, count: 5 },
@@ -34,23 +43,8 @@ export default function ChatListOuter() {
   return (
     <>
       <div className="w-full h-full bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col">
-
-        {/* Search */}
-        <div className="p-4">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search chats, friends..."
-              className="w-full pl-10 pr-4 py-2 bg-gray-100 dark:bg-gray-700 rounded-xl border-0 focus:ring-2 focus:ring-blue-500 transition-all text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
-            />
-          </div>
-        </div>
-
         {/* Tabs */}
-        <div className="px-4 mb-4">
+        <div className="px-4 mb-4 pt-4">
           <div className="flex bg-gray-100 dark:bg-gray-700 rounded-xl p-1">
             {tabs.map((tab) => {
               const Icon = tab.icon;
@@ -75,6 +69,21 @@ export default function ChatListOuter() {
               );
             })}
           </div>
+          {activeTab === "friends" && (
+            // Search
+            <div className="pt-4">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search friends..."
+                  className="w-full pl-10 pr-4 py-2 bg-gray-100 dark:bg-gray-700 rounded-xl border-0 focus:ring-2 focus:ring-blue-500 transition-all text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
+                />
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Content */}
@@ -86,7 +95,13 @@ export default function ChatListOuter() {
             transition={{ duration: 0.2 }}
             className="h-full"
           >
-            {activeTab === "chats" && <ChatList searchQuery={searchQuery} />}
+            {activeTab === "chats" && (
+              <ChatList
+                searchQuery={searchQuery}
+                conversations={conversations}
+                friendsWithoutConversation={friendsWithoutConversation}
+              />
+            )}
             {activeTab === "requests" && <FriendRequests />}
             {activeTab === "friends" && (
               <FriendsList searchQuery={searchQuery} />

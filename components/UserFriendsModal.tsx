@@ -9,12 +9,10 @@ import {
 } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { searchFriendsApi, removeFriendApi } from "@/app/services/api";
+import { searchFriendsApi } from "@/app/services/api";
 import { UserFriend } from "@/app/services/schema";
 import Link from "next/link";
 import { startProgress } from "@/app/utils/progress";
-import { Button } from "@/components/ui/button";
-import { toast } from "sonner";
 
 interface UserFriendsModalProps {
   open: boolean;
@@ -22,14 +20,13 @@ interface UserFriendsModalProps {
   username: string;
 }
 
-export default function MyFriendsModal({
+export default function UserFriendsModal({
   username,
   open,
   onOpenChange,
 }: UserFriendsModalProps) {
   const [friends, setFriends] = useState<UserFriend[]>([]);
   const [loading, setLoading] = useState(false);
-  const [removing, setRemoving] = useState<string | null>(null);
 
   useEffect(() => {
     if (open && friends.length === 0) {
@@ -45,28 +42,6 @@ export default function MyFriendsModal({
         .finally(() => setLoading(false));
     }
   }, [open, friends.length, username]);
-
-  async function handleRemove(friendId: string) {
-    try {
-      setRemoving(friendId);
-      const res = await removeFriendApi(friendId);
-      if (res.success) {
-        // Optimistic UI update: remove friend from state immediately
-        setFriends((prev) => prev.filter((f) => f._id !== friendId));
-        toast.success(res?.data?.message || "Friend Removed");
-      } else {
-        toast.error(res?.data?.message);
-      }
-    } catch (err: any) {
-      console.error("❌ Error removing friend:", err);
-      toast.error(
-        err.response?.data?.message ||
-          "Failed to remove friend. Please try again later."
-      );
-    } finally {
-      setRemoving(null);
-    }
-  }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -103,15 +78,12 @@ export default function MyFriendsModal({
               </div>
             ) : friends.length > 0 ? (
               friends.map((friend) => (
-                <div
+                <Link
+                  href={`/user/${friend.username}`}
+                  onClick={() => startProgress()}
                   key={friend._id}
-                  className="flex items-center justify-between gap-3 p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
                 >
-                  <Link
-                    href={`/user/${friend.username}`}
-                    onClick={() => startProgress()}
-                    className="flex items-center gap-3"
-                  >
+                  <div className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
                     <Avatar>
                       <AvatarImage
                         height={40}
@@ -131,17 +103,8 @@ export default function MyFriendsModal({
                         @{friend.username}
                       </p>
                     </div>
-                  </Link>
-
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    disabled={removing === friend._id}
-                    onClick={() => handleRemove(friend._id)}
-                  >
-                    {removing === friend._id ? "Removing..." : "Remove"}
-                  </Button>
-                </div>
+                  </div>
+                </Link>
               ))
             ) : (
               <p className="text-center text-gray-500 dark:text-gray-400">

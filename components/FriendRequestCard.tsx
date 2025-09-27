@@ -1,51 +1,55 @@
+"use client";
+import { useState } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { User, UserPlus, Users } from "lucide-react";
+import { UserPlus, Users } from "lucide-react";
 import { toast } from "sonner";
+import { FriendRequest } from "@/app/services/schema";
+import { acceptFriendRequestApi, deleteFriendRequestApi } from "@/app/services/api";
 
-interface FriendRequestCardProps {
-  user: {
-    id: string;
-    name: string;
-    avatar: string;
-    mutualFriends?: number;
-    time?: string;
-  };
-  onAccept?: (userId: string) => void;
-  onReject?: (userId: string) => void;
+interface Props {
+  request: FriendRequest;
+  onRemove: (userId: string) => void; // callback to remove request from UI
 }
 
-export const FriendRequestCard = ({
-  user,
-  onAccept,
-  onReject,
-}: FriendRequestCardProps) => {
-
-  const handleAccept = () => {
-    onAccept?.(user.id);
-    toast.success(`Friend request accepted! You and ${user.name} are now friends.`);
-  };
-
-  const handleReject = () => {
-    onReject?.(user.id);
-    toast.error(`Friend request declined. ${user.name}'s friend request has been declined.`);
-  };
-
-  const initials = user.name
+export const FriendRequestCard = ({ request, onRemove }: Props) => {
+  const [accepted, setAccepted] = useState(false);
+  const initials = request.fullName
     .split(" ")
     .map((n) => n[0])
     .join("")
     .toUpperCase();
 
+  const handleAccept = async () => {
+    try {
+      await acceptFriendRequestApi(request._id);
+      setAccepted(true);
+      toast.success(`Friend request accepted! You and ${request.fullName} are now friends.`);
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to accept friend request");
+    }
+  };
+
+  const handleReject = async () => {
+    try {
+      await deleteFriendRequestApi(request._id);
+      onRemove(request._id); // remove from UI
+      toast.success(`Friend request from ${request.fullName} declined.`);
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to decline friend request");
+    }
+  };
+
   return (
     <Card className="w-full max-w-sm mx-auto shadow-sm hover:shadow-md transition-shadow duration-200 border bg-card">
       <CardContent className="p-6">
         <div className="flex flex-col items-center space-y-4">
-          {/* User Avatar */}
           <div className="relative">
             <Avatar className="w-20 h-20 border-2 border-border">
-              <AvatarImage src={user.avatar} alt={user.name} />
+              <AvatarImage src={request.profileImage} alt={request.fullName} />
               <AvatarFallback className="bg-muted text-muted-foreground text-lg font-semibold">
                 {initials}
               </AvatarFallback>
@@ -55,40 +59,31 @@ export const FriendRequestCard = ({
             </div>
           </div>
 
-          {/* User Info */}
           <div className="text-center space-y-1">
-            <h3 className="font-semibold text-lg text-card-foreground">
-              {user.name}
-            </h3>
-            {user.mutualFriends && user.mutualFriends > 0 && (
-              <div className="flex items-center justify-center space-x-1 text-sm text-muted-foreground">
-                <Users className="w-4 h-4" />
-                <span>{user.mutualFriends} mutual friends</span>
-              </div>
-            )}
-            {user.time && (
-              <p className="text-sm text-muted-foreground">{user.time}</p>
-            )}
+            <h3 className="font-semibold text-lg text-card-foreground">{request.fullName}</h3>
+            <p className="text-sm text-muted-foreground">@{request.username}</p>
           </div>
 
-          {/* Action Buttons */}
           <div className="flex space-x-3 w-full">
             <Button
               onClick={handleAccept}
               variant="default"
-              className="flex-1 bg-green-500 hover:bg-green-600 text-white"
+              className={`flex-1 ${accepted ? "bg-green-600 hover:bg-green-800 text-white cursor-not-allowed" : "bg-green-500 hover:bg-green-600 text-white"}`}
               size="sm"
+              disabled={accepted}
             >
-              Accept
+              {accepted ? "Request Accepted" : "Accept"}
             </Button>
-            <Button
-              onClick={handleReject}
-              variant="outline"
-              className="flex-1"
-              size="sm"
-            >
-              Decline
-            </Button>
+            {!accepted && (
+              <Button
+                onClick={handleReject}
+                variant="outline"
+                className="flex-1"
+                size="sm"
+              >
+                Decline
+              </Button>
+            )}
           </div>
         </div>
       </CardContent>

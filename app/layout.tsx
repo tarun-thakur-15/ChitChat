@@ -2,10 +2,11 @@ import "./globals.css";
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { ThemeProvider } from "@/components/theme-provider";
-// import { Toaster } from "react-hot-toast";
 import { Toaster } from "sonner";
 import Header from "@/components/header";
-// import ProfileProgress from "@/components/ProfileProgress";
+import ProgressBar from "@/components/ProgressBar";
+import { getCurrentUser } from "@/lib/getCurrentUser"; // ✅ import here
+
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
@@ -13,11 +14,14 @@ export const metadata: Metadata = {
   description: "Connect, chat, and share with friends on ChatWave",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const user = await getCurrentUser(); // ✅ call helper
+  const isLoggedInParent = !!user;
+
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={inter.className}>
@@ -27,13 +31,12 @@ export default function RootLayout({
           enableSystem={false}
           disableTransitionOnChange={false}
         >
-          {/* <div className="hidden lg:block absolute top-16 right-7">
-            <ProfileProgress hasPhoto={true} hasAbout={false} />
-          </div> */}
-          <Header />
+          <ProgressBar />
+          <Header isLoggedInParent={isLoggedInParent} user={user} />
           {children}
           <Toaster
-            richColors position="top-right"
+            richColors
+            position="top-right"
             toastOptions={{
               duration: 3000,
               className: "dark:bg-gray-800 dark:text-white",

@@ -147,14 +147,4 @@
     }
   }
 }
-.scrollbar-hide::-webkit-scrollbar {
-  display: none; 
-}
-.scrollbar-hide {
-  -ms-overflow-style: none;  
-  scrollbar-width: none;  
-}
 
-.data-\[state\=unchecked\]\:bg-input[data-state=unchecked] {
-  background-color: hsl(253deg 61.88% 59.52%) !important;
-}
