@@ -1,4 +1,4 @@
-"use client"
+"use client";
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { MessageSquare } from "lucide-react";
@@ -9,12 +9,13 @@ import {
 } from "@/components/ui/resizable";
 import ChatMainComponent from "@/components/chat-main-component";
 import ChatListOuter from "@/components/chat-list-outer";
+import { socket } from "@/socket";
 
 // api
 import { getConversationsApi } from "@/app/services/api";
 import { GetConversationsResponse } from "../app/services/schema";
 interface Props {
-    userId: string;
+  userId: string;
 }
 function useMediaQuery(query: string) {
   const [matches, setMatches] = useState<boolean | null>(null);
@@ -33,32 +34,79 @@ function useMediaQuery(query: string) {
 
   return matches;
 }
-export default function SearchPageClientSide ({userId}: Props) {
-    const [data, setData] = useState<GetConversationsResponse>({
-      success: false,
-      conversations: [],
-      friendsWithoutConversation: [],
-    });
-      const [isChatSelected, setIsChatSelected] = useState(true);
-      const isLargeScreen = useMediaQuery("(min-width: 1024px)");
-    
-      // ✅ Fetch conversations client-side
-      useEffect(() => {
-        const fetchConversations = async () => {
-          try {
-            const res = await getConversationsApi();
-            setData(res);
-          } catch (err) {
-            console.error("❌ Error loading conversations:", err);
-          }
-        };
-        fetchConversations();
-      }, []);
-    
-      if (isLargeScreen === null) return null;
-    return(
-        <>
-        {isLargeScreen ? (
+export default function SearchPageClientSide({ userId }: Props) {
+  const [data, setData] = useState<GetConversationsResponse>({
+    success: false,
+    conversations: [],
+    friendsWithoutConversation: [],
+  });
+  const [isChatSelected, setIsChatSelected] = useState(true);
+  const isLargeScreen = useMediaQuery("(min-width: 1024px)");
+
+  // ✅ Fetch conversations client-side
+  // useEffect(() => {
+  //   const fetchConversations = async () => {
+  //     try {
+  //       const res = await getConversationsApi();
+  //       setData(res);
+  //     } catch (err) {
+  //       console.error("❌ Error loading conversations:", err);
+  //     }
+  //   };
+  //   fetchConversations();
+  // }, []);
+useEffect(() => {
+  const fetchConversations = async () => {
+    try {
+      const res = await getConversationsApi();
+      setData(res);
+
+      // ✅ Connect socket if not already connected
+      if (!socket.connected) socket.connect();
+
+      // ✅ Join this user
+      socket.emit("user:join", { userId: userId });
+
+      // ✅ Join each conversation
+      res.conversations.forEach((convo: any) => {
+        socket.emit("conversation:join", { conversationId: convo._id });
+      });
+
+      // ✅ Listen for real-time conversation updates
+      socket.on("conversation:update", (data) => {
+        console.log("💬 Conversation updated via socket:", data);
+
+        if (data.conversations && data.conversations.length > 0) {
+          setData((prev: any) => {
+            const updatedConvo = data.conversations[0];
+            const updatedConversations = prev.conversations.map((c: any) =>
+              c._id === updatedConvo._id ? updatedConvo : c
+            );
+            return { ...prev, conversations: updatedConversations };
+          });
+        }
+      });
+    } catch (err) {
+      console.error("❌ Error loading conversations:", err);
+    }
+  };
+
+  fetchConversations();
+
+  // Cleanup
+  return () => {
+    if (socket.connected) {
+      socket.disconnect();
+    }
+    socket.off("conversation:update");
+  };
+}, [userId]);
+
+
+  if (isLargeScreen === null) return null;
+  return (
+    <>
+      {isLargeScreen ? (
         <ResizablePanelGroup direction="horizontal" className="h-screen">
           <ResizablePanel defaultSize={30} minSize={15} maxSize={40}>
             <ChatListOuter
@@ -103,6 +151,6 @@ export default function SearchPageClientSide ({userId}: Props) {
           friendsWithoutConversation={data.friendsWithoutConversation}
         />
       )}
-        </>
-    )
+    </>
+  );
 }

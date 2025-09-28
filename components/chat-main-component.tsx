@@ -2,12 +2,18 @@
 
 import { useState, useRef, useEffect } from "react";
 import { motion } from "framer-motion";
+import Image from "next/image";
 import Cookies from "js-cookie";
 import { useChatStore } from "@/app/stores/chatStore";
-import { getMessagesApi, startConversationApi, sendMessageApi } from "@/app/services/api";
+import {
+  getMessagesApi,
+  startConversationApi,
+  sendMessageApi,
+} from "@/app/services/api";
 import { StartConversationResponse, ChatMessage } from "@/app/services/schema";
 import { ChatBubble } from "@/components/chat-bubble";
 import MediaPreviewModal from "./MediaPreviewModal";
+import { startProgress } from "@/app/utils/progress";
 import {
   MessageSquare,
   Paperclip,
@@ -18,6 +24,9 @@ import {
   Contact,
   Smile,
   Video,
+  ArrowLeft,
+  Phone,
+  MoreHorizontal,
 } from "lucide-react";
 import {
   Dialog,
@@ -26,8 +35,21 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { mapMessage } from "@/app/utils/mapMessage";
 import { SendMessageRequest } from "@/app/services/schema";
+import Link from "next/link";
+import { socket } from "@/socket";
 
 type FileType = "photo" | "video" | "doc" | "audio" | null;
 
@@ -50,8 +72,16 @@ export default function ChatMainComponent({ userId }: Props) {
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isTyping, setIsTyping] = useState(false);
 
   const [receiverId, setReceiverId] = useState<string | null>(null);
+
+  const [chatPartner, setChatPartner] = useState<{
+    _id: string;
+    fullName: string;
+    username: string;
+    profileImage?: string;
+  } | null>(null);
 
   // Scroll to bottom
   const scrollToBottom = () => {
@@ -65,42 +95,80 @@ export default function ChatMainComponent({ userId }: Props) {
   }, []);
 
   // Load messages when active chat changes
-  useEffect(() => {
-    async function fetchMessages() {
-      if (!activeChatType) return;
 
-      try {
-        let convId = conversationId;
+useEffect(() => {
+  if (!activeChatType) return;
 
-        if (activeChatType === "friend" && friendId) {
-          const convRes: StartConversationResponse = await startConversationApi({
-            receiverId: friendId,
-          });
-          convId = convRes.conversation._id;
-        }
+  let convId: string | null = conversationId ?? null;
 
-        if (convId) {
-          const msgsRes = await getMessagesApi(convId);
-
-          // ✅ Map all API messages into UI shape
-          setMessages(msgsRes.messages.map((m) => mapMessage(m, userId)));
-
-          // ✅ Figure out receiverId
-          if (msgsRes.messages.length > 0) {
-            const firstMsg = msgsRes.messages[0];
-            const rId =
-              firstMsg.sender._id === userId
-                ? firstMsg.receiver._id
-                : firstMsg.sender._id;
-            setReceiverId(rId);
-          }
-        }
-      } catch (error) {
-        console.error("Error fetching messages:", error);
+  async function setupChat() {
+    try {
+      if (activeChatType === "friend" && friendId) {
+        const convRes: StartConversationResponse = await startConversationApi({
+          receiverId: friendId,
+        });
+        convId = convRes.conversation._id;
       }
+
+      if (!convId) return;
+
+      const msgsRes = await getMessagesApi(convId);
+      const mappedMessages = msgsRes.messages.map((m) => mapMessage(m, userId));
+      setMessages(mappedMessages);
+
+      if (msgsRes.messages.length > 0) {
+        const firstMsg = msgsRes.messages[0];
+        const partner =
+          firstMsg.sender._id === userId ? firstMsg.receiver : firstMsg.sender;
+
+        setReceiverId(partner._id);
+        setChatPartner({
+          _id: partner._id,
+          fullName: partner.fullName,
+          username: partner.username,
+          profileImage: partner.profileImage,
+        });
+      }
+
+      socket.emit("conversation:join", { conversationId: convId });
+
+      const handleReceiveMessage = (msg: any) => {
+        if (!convId) return;
+        if (msg.conversation.toString() === convId.toString()) {
+          setMessages((prev) => {
+            const msgId = msg._id || msg.id;
+            if (prev.some((m) => m.id === msgId)) return prev;// prevent duplicates
+            return [...prev, mapMessage(msg, userId)];
+          });
+        }
+      };
+
+      socket.on("receiveMessage", handleReceiveMessage);
+      
+
+      socket.on("messageSeen", ({ messageId }) => {
+        setMessages((prev: any) =>
+          prev.map((m: any) =>
+            m._id === messageId ? { ...m, status: "seen" } : m
+          )
+        );
+      });
+
+      return () => {
+        if (convId) {
+          socket.emit("conversation:leave", { conversationId: convId });
+        }
+        socket.off("receiveMessage", handleReceiveMessage);
+        socket.off("messageSeen");
+      };
+    } catch (error) {
+      console.error("❌ Error setting up chat:", error);
     }
-    fetchMessages();
-  }, [activeChatType, conversationId, friendId, userId]);
+  }
+
+  setupChat();
+}, [activeChatType, conversationId, friendId, userId]);
+
 
   useEffect(() => {
     scrollToBottom();
@@ -143,7 +211,7 @@ export default function ChatMainComponent({ userId }: Props) {
 
       // ✅ Map to ChatMessage before storing
       const newMsg = mapMessage(res.chat, userId);
-      setMessages((prev) => [...prev, newMsg]);
+      // setMessages((prev) => [...prev, newMsg]);
       setPreviewOpen(false);
       setSelectedFiles([]);
       scrollToBottom();
@@ -167,7 +235,7 @@ export default function ChatMainComponent({ userId }: Props) {
 
       // ✅ Map to ChatMessage before storing
       const newMsg = mapMessage(res.chat, userId);
-      setMessages((prev) => [...prev, newMsg]);
+      // setMessages((prev) => [...prev, newMsg]);
       setMessage("");
       scrollToBottom();
     } catch (err) {
@@ -213,8 +281,109 @@ export default function ChatMainComponent({ userId }: Props) {
     );
   }
 
+  const handleThemeChange = (newTheme: string) => {
+    Cookies.set("chatTheme", newTheme);
+    setTheme(newTheme);
+  };
+
   return (
     <div className="h-screen bg-gray-50 dark:bg-gray-900 flex flex-col w-full">
+      {/* header */}
+      <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-4 py-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-4">
+            <button className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors lg:hidden">
+              <ArrowLeft className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+            </button>
+
+            <Link
+              href={`user/${chatPartner?.username}`}
+              onClick={() => startProgress()}
+              className="flex items-center space-x-3"
+            >
+              <div className="relative">
+                {chatPartner?.profileImage ? (
+                  <Image
+                    src={chatPartner.profileImage}
+                    alt={chatPartner.username}
+                    height={40}
+                    width={40}
+                    className="object-cover h-10 w-10 rounded-full"
+                  />
+                ) : (
+                  <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
+                    <span className="text-white font-medium">AJ</span>
+                  </div>
+                )}
+                {/* only when user is online */}
+                <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 rounded-full border-2 border-white dark:border-gray-800"></div>
+              </div>
+
+              <div>
+                <h2 className="font-semibold text-gray-900 dark:text-white">
+                  {chatPartner?.fullName || "Chit Chat User"}
+                </h2>
+                <p className="text-sm text-gray-600 dark:text-gray-400 space-x-3">
+                  <span>@{chatPartner?.username || "chitchatuser"}</span>
+                  <span>{isTyping ? "typing..." : ""}</span>
+                </p>
+              </div>
+            </Link>
+          </div>
+
+          <div className="flex items-center space-x-2">
+            <button className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">
+              <Phone className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+            </button>
+            <button className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">
+              <Video className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+            </button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">
+                  <MoreHorizontal className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="w-40">
+                <DropdownMenuLabel>Options</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuSub>
+                  <DropdownMenuSubTrigger>Themes</DropdownMenuSubTrigger>
+                  <DropdownMenuSubContent>
+                    <DropdownMenuItem
+                      onClick={() => handleThemeChange("Superman")}
+                    >
+                      Superman
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => handleThemeChange("Hearts")}
+                    >
+                      Hears
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleThemeChange("Cat")}>
+                      Cat
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => handleThemeChange("Couple")}
+                    >
+                      Couple
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => {
+                        Cookies.remove("chatTheme");
+                        window.location.reload();
+                      }}
+                    >
+                      Default
+                    </DropdownMenuItem>
+                    {/* Add more themes later */}
+                  </DropdownMenuSubContent>
+                </DropdownMenuSub>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        </div>
+      </div>
       {/* Messages */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-100 dark:bg-gray-800 relative">
         {renderMessages()}
