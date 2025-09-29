@@ -283,13 +283,19 @@ export async function getConversationsApi(): Promise<GetConversationsResponse> {
 }
 
 export async function getMessagesApi(
-  conversationId: string
+  conversationId: string,
+  limit: number = 10,
+  before?: string
 ): Promise<GetMessagesResponse> {
   try {
-    const res = await fetch(`${base_url}/messages/${conversationId}`, {
+    const url = new URL(`${base_url}/messages/${conversationId}`);
+    url.searchParams.append("limit", String(limit));
+    if (before) url.searchParams.append("before", before);
+
+    const res = await fetch(url.toString(), {
       method: "GET",
-      credentials: "include", // ✅ Send cookies automatically
-      cache: "no-store", // ✅ Avoid stale data
+      credentials: "include",
+      cache: "no-store",
     });
 
     if (!res.ok) {
@@ -302,6 +308,7 @@ export async function getMessagesApi(
     throw new Error(err.message || "Network error while fetching messages");
   }
 }
+
 
 export async function startConversationApi(
   data: StartConversationRequest
@@ -326,10 +333,14 @@ export async function startConversationApi(
 }
 
 export const sendMessageApi = async (
-  payload: SendMessageRequest
+  payload: SendMessageRequest | FormData
 ): Promise<{ success: boolean; chat: ChatMessageResponse }> => {
+  const isFormData = payload instanceof FormData;
+
   const res = await axios.post(`${base_url}/sendMessage`, payload, {
-    withCredentials: true, // ✅ send cookies (accessToken)
+    withCredentials: true,
+    headers: isFormData ? { "Content-Type": "multipart/form-data" } : undefined,
   });
+
   return res.data;
 };

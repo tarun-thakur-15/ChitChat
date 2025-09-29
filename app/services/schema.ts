@@ -264,12 +264,14 @@ export interface Message {
   content: string;
   mediaUrl?: string;
   createdAt: string;
+   fileSize?: string;
 }
 
 export interface ApiMessage {
   _id: string;
   message: string;
   mediaUrl?: string;
+  fileSize?: string;
   status: "sent" | "delivered" | "read";
   createdAt: string;
 
@@ -296,9 +298,11 @@ export interface ChatMessage {
   timestamp: Date;
   status: "sent" | "delivered" | "read";
   fileName?: string;
+  fileSize?: string;
 }
 
 export interface GetMessagesResponse {
+  pagination: any;
   success: boolean;
   messages: Message[];
 }
@@ -330,9 +334,11 @@ export interface SendMessageRequest {
 export interface ChatMessageResponse {
   _id: string;
   conversation: string;
-  sender: string | UserMini;   // ⬅ allow string
-  receiver: string | UserMini; // ⬅ allow string
+  sender: string | UserMini;   // ⬅ correct: could be string or populated object
+  receiver: string | UserMini; // ⬅ correct
   message: string;
+  fileName?: string;
+  fileSize?: number;
   mediaUrl?: string;
   status: "sent" | "delivered" | "read";
   seenAt?: string | null;

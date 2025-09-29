@@ -1,10 +1,16 @@
 "use client";
 
 import { motion } from "framer-motion";
+import Image from "next/image";
 import { Check, CheckCheck, Download, FileText } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import Cookies from "js-cookie";
+import { ChatMessage } from "@/app/services/schema";
+import ImagePreviewDrawer from "./ImagePreviewDrawer";
+import { useState } from "react";
+
 export interface Message {
+  fileSize: string;
   id: string;
   content: string;
   type: "text" | "image" | "file";
@@ -15,10 +21,14 @@ export interface Message {
 }
 
 interface ChatBubbleProps {
-  message: Message;
+  message: ChatMessage;
 }
 
 export function ChatBubble({ message }: ChatBubbleProps) {
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const handleImageClick = () => {
+    setDrawerOpen(true);
+  };
   const theme = Cookies.get("chatTheme");
   const StatusIcon = () => {
     switch (message.status) {
@@ -37,22 +47,28 @@ export function ChatBubble({ message }: ChatBubbleProps) {
     switch (message.type) {
       case "image":
         return (
-          <div className="relative">
-            <img
+          <div
+            onClick={handleImageClick}
+            className="relative w-48 h-48 rounded-xl overflow-hidden cursor-pointer hover:opacity-90 transition-opacity"
+          >
+            <Image
               src={message.content}
-              alt="Shared image"
-              className="max-w-xs rounded-xl cursor-pointer hover:opacity-90 transition-opacity"
+              alt={message.fileName || "Shared image"}
+              height={192}
+              width={192}
+              className="object-cover w-full h-full"
             />
           </div>
         );
 
       case "file":
         return (
-          <div className={`flex items-center space-x-3 p-3 
+          <div
+            className={`flex items-center space-x-3 p-3 
           ${
             theme === "Superman"
               ? message.isOwn
-                ? "bg-yellow-400 text-gray-900 rounded-br-sm" 
+                ? "bg-yellow-400 text-gray-900 rounded-br-sm"
                 : "bg-blue-400 text-white rounded-bl-sm"
               : theme === "Hearts" && message.isOwn
               ? "bg-purple-900"
@@ -63,10 +79,11 @@ export function ChatBubble({ message }: ChatBubbleProps) {
               : theme === "Couple" && !message.isOwn
               ? "bg-green-800"
               : message.isOwn
-              ? "bg-blue-600 border-blue-200 text-white rounded-br-sm" 
+              ? "bg-blue-600 border-blue-200 text-white rounded-br-sm"
               : "bg-white dark:bg-gray-600 rounded-bl-sm border border-gray-200"
           }
-           rounded-xl min-w-[200px]`}>
+           rounded-xl min-w-[200px]`}
+          >
             <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center">
               <FileText className="w-5 h-5 text-white" />
             </div>
@@ -74,13 +91,18 @@ export function ChatBubble({ message }: ChatBubbleProps) {
               <p className="font-medium text-gray-900 dark:text-white text-sm">
                 {message.fileName || "Document"}
               </p>
-              <p className="text-xs text-gray-600 dark:text-gray-400">
-                PDF • 2.4 MB
-              </p>
+              <p className="text-xs text-gray-600 dark:text-gray-400">0kb</p>
             </div>
-            <button className="p-2 hover:bg-gray-200 dark:hover:bg-gray-500 rounded-lg transition-colors">
+            {/* <button className="p-2 hover:bg-gray-200 dark:hover:bg-gray-500 rounded-lg transition-colors">
               <Download className="w-4 h-4 text-gray-600 dark:text-gray-400" />
-            </button>
+            </button> */}
+            <a
+              href={message.content}
+              download
+              className="p-2 hover:bg-gray-200 dark:hover:bg-gray-500 rounded-lg transition-colors"
+            >
+              <Download className="w-4 h-4 text-gray-600 dark:text-gray-400" />
+            </a>
           </div>
         );
 
@@ -106,64 +128,74 @@ export function ChatBubble({ message }: ChatBubbleProps) {
   };
 
   return (
-    <motion.div
-      initial={{ opacity: 0, scale: 0.8 }}
-      animate={{ opacity: 1, scale: 1 }}
-      className={`flex ${message.isOwn ? "justify-end" : "justify-start"} mb-4`}
-    >
-      <div
-        className={`max-w-xs lg:max-w-md ${
-          message.isOwn ? "order-2" : "order-1"
-        }`}
+    <>
+      <motion.div
+        initial={{ opacity: 0, scale: 0.8 }}
+        animate={{ opacity: 1, scale: 1 }}
+        className={`flex ${
+          message.isOwn ? "justify-end" : "justify-start"
+        } mb-4`}
       >
         <div
-          className={`relative px-4 py-2 rounded-2xl shadow-sm ${
-            theme === "Superman"
-              ? message.isOwn
-                ? "bg-yellow-400 text-gray-900 rounded-br-sm" // our msg → yellow
-                : "bg-blue-400 text-white rounded-bl-sm" // others msg → blue
-              : theme === "Hearts" && message.isOwn
-              ? "bg-purple-900"
-              : theme === "Hearts" && !message.isOwn
-              ? "bg-[#1b5105]"
-              : theme === "Couple" && message.isOwn
-              ? "bg-[#063394]"
-              : theme === "Couple" && !message.isOwn
-              ? "bg-green-800"
-              : message.isOwn
-              ? "bg-blue-600 text-white rounded-br-sm" // default our msg
-              : "bg-white dark:bg-gray-700 rounded-bl-sm border border-gray-200 dark:border-gray-600" // default others
+          className={`max-w-xs lg:max-w-md ${
+            message.isOwn ? "order-2" : "order-1"
           }`}
         >
-          {/* Emoji overlay for Couple theme */}
-          {theme === "Couple" && (
-            <>
-              <span className="absolute -top-2 -left-2 text-2xl">💕</span>
-              <span className="absolute -top-2 -right-2 text-2xl">💕</span>
-              <span className="absolute -bottom-2 -right-2 text-2xl">💕</span>
-              <span className="absolute -bottom-2 -left-2 text-2xl">💕</span>
-            </>
-          )}
-          {renderContent()}
-        </div>
-
-        <div
-          className={`flex items-center space-x-1 mt-1 px-2 ${
-            message.isOwn ? "justify-end" : "justify-start"
-          }`}
-        >
-          <span
-            className={`text-xs ${
-              theme === "Hearts" || "Superman"
-                ? "text-white"
-                : "text-gray-500 dark:text-gray-400"
+          <div
+            className={`relative px-4 py-2 rounded-2xl shadow-sm ${
+              theme === "Superman"
+                ? message.isOwn
+                  ? "bg-yellow-400 text-gray-900 rounded-br-sm" // our msg → yellow
+                  : "bg-blue-400 text-white rounded-bl-sm" // others msg → blue
+                : theme === "Hearts" && message.isOwn
+                ? "bg-purple-900"
+                : theme === "Hearts" && !message.isOwn
+                ? "bg-[#1b5105]"
+                : theme === "Couple" && message.isOwn
+                ? "bg-[#063394]"
+                : theme === "Couple" && !message.isOwn
+                ? "bg-green-800"
+                : message.isOwn
+                ? "bg-blue-600 text-white rounded-br-sm" // default our msg
+                : "bg-white dark:bg-gray-700 rounded-bl-sm border border-gray-200 dark:border-gray-600" // default others
             }`}
           >
-            {formatDistanceToNow(message.timestamp, { addSuffix: true })}
-          </span>
-          {message.isOwn && <StatusIcon />}
+            {/* Emoji overlay for Couple theme */}
+            {theme === "Couple" && (
+              <>
+                <span className="absolute -top-2 -left-2 text-2xl">💕</span>
+                <span className="absolute -top-2 -right-2 text-2xl">💕</span>
+                <span className="absolute -bottom-2 -right-2 text-2xl">💕</span>
+                <span className="absolute -bottom-2 -left-2 text-2xl">💕</span>
+              </>
+            )}
+            {renderContent()}
+          </div>
+
+          <div
+            className={`flex items-center space-x-1 mt-1 px-2 ${
+              message.isOwn ? "justify-end" : "justify-start"
+            }`}
+          >
+            <span
+              className={`text-xs ${
+                theme === "Hearts" || "Superman"
+                  ? "text-white"
+                  : "text-gray-500 dark:text-gray-400"
+              }`}
+            >
+              {formatDistanceToNow(message.timestamp, { addSuffix: true })}
+            </span>
+            {message.isOwn && <StatusIcon />}
+          </div>
         </div>
-      </div>
-    </motion.div>
+      </motion.div>
+      <ImagePreviewDrawer
+        open={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
+        imageUrl={message.content}
+        fileName={message.fileName}
+      />
+    </>
   );
 }

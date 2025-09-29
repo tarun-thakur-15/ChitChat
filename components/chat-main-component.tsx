@@ -50,6 +50,7 @@ import { mapMessage } from "@/app/utils/mapMessage";
 import { SendMessageRequest } from "@/app/services/schema";
 import Link from "next/link";
 import { socket } from "@/socket";
+import ChatSkeleton from "./ChatSkeleton";
 
 type FileType = "photo" | "video" | "doc" | "audio" | null;
 
@@ -59,8 +60,15 @@ interface Props {
 
 export default function ChatMainComponent({ userId }: Props) {
   const { activeChatType, conversationId, friendId } = useChatStore();
+  const [loadingMessages, setLoadingMessages] = useState(true);
+  const [hasMoreOlderMessages, setHasMoreOlderMessages] = useState(true);
 
   // ✅ Only keep UI-ready messages
+  const chatRef = useRef<HTMLDivElement>(null);
+  const [isLoadingOlder, setIsLoadingOlder] = useState(false);
+  const [activeConversationId, setActiveConversationId] = useState<
+    string | null
+  >(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [message, setMessage] = useState("");
   const [theme, setTheme] = useState<string | null>(null);
@@ -75,6 +83,7 @@ export default function ChatMainComponent({ userId }: Props) {
   const [isTyping, setIsTyping] = useState(false);
 
   const [receiverId, setReceiverId] = useState<string | null>(null);
+  const typingTimeout = useRef<NodeJS.Timeout | null>(null);
 
   const [chatPartner, setChatPartner] = useState<{
     _id: string;
@@ -96,83 +105,161 @@ export default function ChatMainComponent({ userId }: Props) {
 
   // Load messages when active chat changes
 
-useEffect(() => {
-  if (!activeChatType) return;
+  useEffect(() => {
+    if (!activeChatType) return;
 
-  let convId: string | null = conversationId ?? null;
+    let convId: string | null = conversationId ?? null;
 
-  async function setupChat() {
-    try {
-      if (activeChatType === "friend" && friendId) {
-        const convRes: StartConversationResponse = await startConversationApi({
-          receiverId: friendId,
-        });
-        convId = convRes.conversation._id;
-      }
+    async function setupChat() {
+      try {
+        setLoadingMessages(true);
+        if (activeChatType === "friend" && friendId) {
+          const convRes: StartConversationResponse = await startConversationApi(
+            {
+              receiverId: friendId,
+            }
+          );
+          convId = convRes.conversation._id;
+        }
 
-      if (!convId) return;
-
-      const msgsRes = await getMessagesApi(convId);
-      const mappedMessages = msgsRes.messages.map((m) => mapMessage(m, userId));
-      setMessages(mappedMessages);
-
-      if (msgsRes.messages.length > 0) {
-        const firstMsg = msgsRes.messages[0];
-        const partner =
-          firstMsg.sender._id === userId ? firstMsg.receiver : firstMsg.sender;
-
-        setReceiverId(partner._id);
-        setChatPartner({
-          _id: partner._id,
-          fullName: partner.fullName,
-          username: partner.username,
-          profileImage: partner.profileImage,
-        });
-      }
-
-      socket.emit("conversation:join", { conversationId: convId });
-
-      const handleReceiveMessage = (msg: any) => {
         if (!convId) return;
-        if (msg.conversation.toString() === convId.toString()) {
-          setMessages((prev) => {
-            const msgId = msg._id || msg.id;
-            if (prev.some((m) => m.id === msgId)) return prev;// prevent duplicates
-            return [...prev, mapMessage(msg, userId)];
+
+        // ✅ Save to state so other functions (like handleLoadOlder) can use it
+        setActiveConversationId(convId);
+
+        const msgsRes = await getMessagesApi(convId, 10);
+        const mappedMessages = msgsRes.messages.map((m) =>
+          mapMessage(m, userId)
+        );
+        setMessages(mappedMessages);
+
+        if (msgsRes.messages.length > 0) {
+          const firstMsg = msgsRes.messages[0];
+          const partner =
+            firstMsg.sender._id === userId
+              ? firstMsg.receiver
+              : firstMsg.sender;
+
+          setReceiverId(partner._id);
+          setChatPartner({
+            _id: partner._id,
+            fullName: partner.fullName,
+            username: partner.username,
+            profileImage: partner.profileImage,
           });
         }
-      };
 
-      socket.on("receiveMessage", handleReceiveMessage);
-      
+        socket.emit("conversation:join", { conversationId: convId });
 
-      socket.on("messageSeen", ({ messageId }) => {
-        setMessages((prev: any) =>
-          prev.map((m: any) =>
-            m._id === messageId ? { ...m, status: "seen" } : m
-          )
-        );
-      });
+        const handleReceiveMessage = (msg: any) => {
+          if (!convId) return;
+          if (msg.conversation.toString() === convId.toString()) {
+            setMessages((prev) => {
+              const msgId = msg._id || msg.id;
+              if (prev.some((m) => m.id === msgId)) return prev; // prevent duplicates
+              return [...prev, mapMessage(msg, userId)];
+            });
+          }
+        };
 
-      return () => {
-        if (convId) {
-          socket.emit("conversation:leave", { conversationId: convId });
-        }
-        socket.off("receiveMessage", handleReceiveMessage);
-        socket.off("messageSeen");
-      };
-    } catch (error) {
-      console.error("❌ Error setting up chat:", error);
+        socket.on("receiveMessage", handleReceiveMessage);
+
+        socket.on("messageSeen", ({ messageId }) => {
+          setMessages((prev: any) =>
+            prev.map((m: any) =>
+              m._id === messageId ? { ...m, status: "seen" } : m
+            )
+          );
+        });
+
+        return () => {
+          if (convId) {
+            socket.emit("conversation:leave", { conversationId: convId });
+          }
+          socket.off("receiveMessage", handleReceiveMessage);
+          socket.off("messageSeen");
+        };
+      } catch (error) {
+        console.error("❌ Error setting up chat:", error);
+      } finally {
+        setLoadingMessages(false);
+      }
     }
-  }
 
-  setupChat();
-}, [activeChatType, conversationId, friendId, userId]);
-
+    setupChat();
+  }, [activeChatType, conversationId, friendId, userId]);
 
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+const handleLoadOlder = async () => {
+  if (!hasMoreOlderMessages || !activeConversationId || messages.length === 0) {
+    return console.log("inside if statement");
+  }
+
+  setIsLoadingOlder(true);
+
+  const el = chatRef.current;
+  if (!el) return;
+
+  const scrollHeightBefore = el.scrollHeight;
+
+  const oldestMsg = messages[0];
+  const before = oldestMsg.timestamp.toISOString();
+
+  console.log("reached just above the api call");
+  const olderRes = await getMessagesApi(activeConversationId, 10, before);
+
+  // ✅ Update hasMoreOlderMessages here
+  setHasMoreOlderMessages(olderRes.pagination.hasMore);
+
+  const olderMapped = olderRes.messages.map((m) => mapMessage(m, userId));
+
+  setMessages((prev) => [...olderMapped, ...prev]);
+
+  setTimeout(() => {
+    if (!el) return;
+    const scrollHeightAfter = el.scrollHeight;
+    el.scrollTop = scrollHeightAfter - scrollHeightBefore;
+    setIsLoadingOlder(false);
+  }, 50);
+};
+
+
+  useEffect(() => {
+    const el = chatRef.current;
+    if (!el) return;
+
+    const handleScroll = () => {
+      if (el.scrollTop === 0) {
+        console.log("Scrolled to top → loading older messages...");
+        handleLoadOlder();
+      }
+    };
+
+    el.addEventListener("scroll", handleScroll);
+    return () => el.removeEventListener("scroll", handleScroll);
+  }, [activeConversationId, messages]); // reset only when conversation changes
+
+  useEffect(() => {
+    socket.on("typing", ({ senderId }) => {
+      if (senderId !== userId) {
+        setIsTyping(true);
+      }
+    });
+
+    socket.on("typing_stop", ({ senderId }) => {
+      if (senderId !== userId) {
+        setIsTyping(false);
+      }
+    });
+
+    return () => {
+      socket.off("typing");
+      socket.off("typing_stop");
+    };
+  }, [userId]);
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -199,19 +286,16 @@ useEffect(() => {
 
     try {
       const file = selectedFiles[0];
-      const mediaUrl = URL.createObjectURL(file); // ⚡ replace with actual upload
+      const formData = new FormData();
 
-      const payload: SendMessageRequest = {
-        receiverId,
-        message: "",
-        mediaUrl,
-      };
+      formData.append("receiverId", receiverId);
+      formData.append("message", ""); // empty if media only
+      formData.append("media", file); // matches multer backend
 
-      const res = await sendMessageApi(payload);
+      const res = await sendMessageApi(formData); // ✅ still uses sendMessageApi
 
-      // ✅ Map to ChatMessage before storing
       const newMsg = mapMessage(res.chat, userId);
-      // setMessages((prev) => [...prev, newMsg]);
+      setMessages((prev) => [...prev, newMsg]); // display new message
       setPreviewOpen(false);
       setSelectedFiles([]);
       scrollToBottom();
@@ -244,7 +328,10 @@ useEffect(() => {
   };
 
   // 🎨 render bubbles
-  const renderMessages = () =>
+const renderMessages = () =>
+  loadingMessages ? (
+    <ChatSkeleton/>
+  ) : (
     messages.map((bubbleMsg, index) => (
       <motion.div
         key={bubbleMsg.id}
@@ -254,7 +341,8 @@ useEffect(() => {
       >
         <ChatBubble message={bubbleMsg} />
       </motion.div>
-    ));
+    ))
+  );
 
   // Don’t render anything if no chat is selected
   if (!activeChatType) {
@@ -284,6 +372,16 @@ useEffect(() => {
   const handleThemeChange = (newTheme: string) => {
     Cookies.set("chatTheme", newTheme);
     setTheme(newTheme);
+  };
+
+  const handleTyping = () => {
+    socket.emit("typing", { conversationId, senderId: userId });
+
+    if (typingTimeout.current) clearTimeout(typingTimeout.current);
+
+    typingTimeout.current = setTimeout(() => {
+      socket.emit("typing_stop", { conversationId, senderId: userId });
+    }, 3000);
   };
 
   return (
@@ -385,7 +483,15 @@ useEffect(() => {
         </div>
       </div>
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-100 dark:bg-gray-800 relative">
+      <div
+        ref={chatRef}
+        className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-100 dark:bg-gray-800 relative"
+      >
+        {isLoadingOlder && (
+          <div className="text-center text-sm text-gray-500 dark:text-gray-400 mb-2">
+            Loading...
+          </div>
+        )}
         {renderMessages()}
         <div ref={messagesEndRef} />
       </div>
@@ -470,7 +576,10 @@ useEffect(() => {
           <div className="flex-1 relative">
             <textarea
               value={message}
-              onChange={(e) => setMessage(e.target.value)}
+              onChange={(e) => {
+                setMessage(e.target.value);
+                handleTyping();
+              }}
               onKeyPress={handleKeyPress}
               placeholder="Type a message..."
               className="w-full px-4 py-3 pr-12 bg-gray-100 dark:bg-gray-700 border-0 rounded-2xl focus:ring-2 focus:ring-blue-500 resize-none text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 transition-all"

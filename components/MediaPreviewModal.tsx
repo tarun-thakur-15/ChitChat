@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -15,7 +16,7 @@ type FileType = "photo" | "video" | "doc" | "audio" | null;
 interface MediaPreviewModalProps {
   open: boolean;
   onClose: () => void;
-  onSend: () => void;
+  onSend: () => Promise<void> | void; // allow async
   fileType: FileType;
   selectedFiles: File[];
 }
@@ -27,6 +28,17 @@ export default function MediaPreviewModal({
   fileType,
   selectedFiles,
 }: MediaPreviewModalProps) {
+  const [isSending, setIsSending] = useState(false);
+
+  const handleSend = async () => {
+    try {
+      setIsSending(true);
+      await onSend(); // wait for API
+    } finally {
+      setIsSending(false);
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-md w-full max-w-sm p-0 rounded-xl overflow-hidden">
@@ -81,11 +93,15 @@ export default function MediaPreviewModal({
         </div>
 
         <DialogFooter className="px-4 py-2 border-t flex justify-between">
-          <Button variant="ghost" onClick={onClose}>
+          <Button variant="ghost" onClick={onClose} disabled={isSending}>
             Cancel
           </Button>
-          <Button onClick={onSend} className="bg-green-500 hover:bg-green-600">
-            Send
+          <Button
+            onClick={handleSend}
+            disabled={isSending}
+            className="bg-green-500 hover:bg-green-600"
+          >
+            {isSending ? "Sending..." : "Send"}
           </Button>
         </DialogFooter>
       </DialogContent>
