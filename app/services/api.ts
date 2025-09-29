@@ -28,6 +28,8 @@ import {
   StartConversationResponse,
   ChatMessageResponse,
   SendMessageRequest,
+  GetLastFriendRequestsResponse,
+  SendFriendRequestResponse,
 } from "./schema";
 const base_url = "http://localhost:10000/api";
 // Create axios instance (optional, you can add baseURL & headers)
@@ -309,7 +311,6 @@ export async function getMessagesApi(
   }
 }
 
-
 export async function startConversationApi(
   data: StartConversationRequest
 ): Promise<StartConversationResponse> {
@@ -342,5 +343,21 @@ export const sendMessageApi = async (
     headers: isFormData ? { "Content-Type": "multipart/form-data" } : undefined,
   });
 
+  return res.data;
+};
+
+export const getLastFriendRequestsApi = async (): Promise<GetLastFriendRequestsResponse> => {
+  const res = await axios.get(`${base_url}/getLastThreeFriendRequests`, {
+    withCredentials: true,
+  });
+  return res.data;
+};
+
+export const sendFriendRequestApi = async (
+  userId: string
+): Promise<SendFriendRequestResponse> => {
+  const res = await axios.post(`${base_url}/sendFriendRequest/${userId}`, null, {
+    withCredentials: true,
+  });
   return res.data;
 };

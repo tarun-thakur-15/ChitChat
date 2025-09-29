@@ -1,3 +1,4 @@
+import { UserProvider } from "./context/UserContext";
 import "./globals.css";
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
@@ -5,21 +6,15 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "sonner";
 import Header from "@/components/header";
 import ProgressBar from "@/components/ProgressBar";
-import { getCurrentUser } from "@/lib/getCurrentUser"; // ✅ import here
-
+import { getCurrentUser } from "@/lib/getCurrentUser"; 
 const inter = Inter({ subsets: ["latin"] });
-
-export const metadata: Metadata = {
-  title: "ChatWave - Modern Chat Platform",
-  description: "Connect, chat, and share with friends on ChatWave",
-};
 
 export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const user = await getCurrentUser(); // ✅ call helper
+  const user = await getCurrentUser();
   const isLoggedInParent = !!user;
 
   return (
@@ -32,8 +27,10 @@ export default async function RootLayout({
           disableTransitionOnChange={false}
         >
           <ProgressBar />
-          <Header isLoggedInParent={isLoggedInParent} user={user} />
-          {children}
+          <UserProvider user={user}> {/* ✅ wrap children */}
+            <Header isLoggedInParent={isLoggedInParent} user={user} />
+            {children}
+          </UserProvider>
           <Toaster
             richColors
             position="top-right"

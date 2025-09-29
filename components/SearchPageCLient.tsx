@@ -39,69 +39,57 @@ export default function SearchPageClientSide({ userId }: Props) {
     success: false,
     conversations: [],
     friendsWithoutConversation: [],
+    totalFriendRequests: 0,
   });
   const [isChatSelected, setIsChatSelected] = useState(true);
   const isLargeScreen = useMediaQuery("(min-width: 1024px)");
 
-  // ✅ Fetch conversations client-side
-  // useEffect(() => {
-  //   const fetchConversations = async () => {
-  //     try {
-  //       const res = await getConversationsApi();
-  //       setData(res);
-  //     } catch (err) {
-  //       console.error("❌ Error loading conversations:", err);
-  //     }
-  //   };
-  //   fetchConversations();
-  // }, []);
-useEffect(() => {
-  const fetchConversations = async () => {
-    try {
-      const res = await getConversationsApi();
-      setData(res);
+  useEffect(() => {
+    const fetchConversations = async () => {
+      try {
+        const res = await getConversationsApi();
+        setData(res);
 
-      // ✅ Connect socket if not already connected
-      if (!socket.connected) socket.connect();
+        // ✅ Connect socket if not already connected
+        if (!socket.connected) socket.connect();
 
-      // ✅ Join this user
-      socket.emit("user:join", { userId: userId });
+        // ✅ Join this user
+        socket.emit("user:join", { userId: userId });
 
-      // ✅ Join each conversation
-      res.conversations.forEach((convo: any) => {
-        socket.emit("conversation:join", { conversationId: convo._id });
-      });
+        // ✅ Join each conversation
+        res.conversations.forEach((convo: any) => {
+          socket.emit("conversation:join", { conversationId: convo._id });
+        });
 
-      // ✅ Listen for real-time conversation updates
-      socket.on("conversation:update", (data) => {
-        console.log("💬 Conversation updated via socket:", data);
+        // ✅ Listen for real-time conversation updates
+        socket.on("conversation:update", (data) => {
+          console.log("💬 Conversation updated via socket:", data);
 
-        if (data.conversations && data.conversations.length > 0) {
-          setData((prev: any) => {
-            const updatedConvo = data.conversations[0];
-            const updatedConversations = prev.conversations.map((c: any) =>
-              c._id === updatedConvo._id ? updatedConvo : c
-            );
-            return { ...prev, conversations: updatedConversations };
-          });
-        }
-      });
-    } catch (err) {
-      console.error("❌ Error loading conversations:", err);
-    }
-  };
+          if (data.conversations && data.conversations.length > 0) {
+            setData((prev: any) => {
+              const updatedConvo = data.conversations[0];
+              const updatedConversations = prev.conversations.map((c: any) =>
+                c._id === updatedConvo._id ? updatedConvo : c
+              );
+              return { ...prev, conversations: updatedConversations };
+            });
+          }
+        });
+      } catch (err) {
+        console.error("❌ Error loading conversations:", err);
+      }
+    };
 
-  fetchConversations();
+    fetchConversations();
 
-  // Cleanup
-  return () => {
-    if (socket.connected) {
-      socket.disconnect();
-    }
-    socket.off("conversation:update");
-  };
-}, [userId]);
-
+    // Cleanup
+    return () => {
+      if (socket.connected) {
+        socket.disconnect();
+      }
+      socket.off("conversation:update");
+    };
+  }, [userId]);
 
   if (isLargeScreen === null) return null;
   return (
@@ -112,6 +100,7 @@ useEffect(() => {
             <ChatListOuter
               conversations={data.conversations}
               friendsWithoutConversation={data.friendsWithoutConversation}
+              totalFriendRequests={data.totalFriendRequests}
             />
           </ResizablePanel>
           <ResizableHandle withHandle />
@@ -148,6 +137,7 @@ useEffect(() => {
       ) : (
         <ChatListOuter
           conversations={data.conversations}
+          totalFriendRequests={data.totalFriendRequests}
           friendsWithoutConversation={data.friendsWithoutConversation}
         />
       )}

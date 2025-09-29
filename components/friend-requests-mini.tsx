@@ -4,85 +4,119 @@ import { motion } from "framer-motion";
 import { Check, X } from "lucide-react";
 import { toast } from "sonner";
 import Link from "next/link";
+import Image from "next/image";
+import DefaultProfileImage from "../app/images/business-man.png";
+
+//api
+import { acceptFriendRequestApi, deleteFriendRequestApi } from "@/app/services/api";
+import { useEffect, useState } from "react";
 
 interface FriendRequest {
-  id: string;
-  user: {
-    name: string;
-    username: string;
-    avatar: string;
-  };
-  timestamp: Date;
+  _id: string;
+  fullName: string;
+  username: string;
+  profileImage?: string;
+  createdAt: string;
 }
 
-const mockRequests: FriendRequest[] = [
-  {
-    id: "1",
-    user: {
-      name: "Emma Davis",
-      username: "emma_d",
-      avatar: "ED",
-    },
-    timestamp: new Date(Date.now() - 30 * 60 * 1000),
-  },
-  {
-    id: "2",
-    user: {
-      name: "Mike Brown",
-      username: "mikebrown",
-      avatar: "MB",
-    },
-    timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000),
-  },
-  {
-    id: "3",
-    user: {
-      name: "Sarah Lee",
-      username: "sarah_lee",
-      avatar: "SL",
-    },
-    timestamp: new Date(Date.now() - 5 * 60 * 60 * 1000),
-  },
-];
+interface FriendRequestsProps {
+  requests: FriendRequest[];
+  loading: boolean;
+}
 
-export function FriendRequests() {
-  const handleAccept = (request: FriendRequest) => {
-    toast.success(`You can now chat with ${request.user.username}`, {
-      icon: "✅",
-      duration: 4000,
-    });
+export function FriendRequests({ requests, loading }: FriendRequestsProps) {
+  const [localRequests, setLocalRequests] = useState<FriendRequest[]>(requests);
+  useEffect(() => {
+    setLocalRequests(requests); // update if parent props change
+  }, [requests]);
+
+  const handleAccept = async (request: FriendRequest) => {
+    try {
+      const res = await acceptFriendRequestApi(request._id);
+      if (res.success) {
+        toast.success(
+          res.message || `You can now chat with ${request.username}`,
+          {
+            icon: "✅",
+            duration: 4000,
+          }
+        );
+        setLocalRequests((prev) => prev.filter((r) => r._id !== request._id)); // remove accepted request
+      } else {
+        toast.error(res.message || "Failed to accept request", { icon: "❌" });
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error("Error accepting request", { icon: "❌" });
+    }
   };
 
-  const handleDecline = (request: FriendRequest) => {
-    toast.error(`Declined request from ${request.user.username}`, {
-      icon: "❌",
-      duration: 3000,
-    });
-  };
+const handleDecline = async (request: FriendRequest) => {
+  try {
+    const res = await deleteFriendRequestApi(request._id);
+    if (res.success) {
+      toast.success(res.message || `Declined request from ${request.username}`, {
+        icon: "✅",
+        duration: 4000,
+      });
+      setLocalRequests(prev => prev.filter(r => r._id !== request._id));
+    } else {
+      toast.error(res.message || "Failed to decline request", { icon: "❌" });
+    }
+  } catch (err) {
+    console.error(err);
+    toast.error("Error declining request", { icon: "❌" });
+  }
+};
+
+  if (loading) {
+    return (
+      <div className="px-4 space-y-3">
+        {[1, 2, 3].map((i) => (
+          <div
+            key={i}
+            className="animate-pulse bg-white dark:bg-gray-700 p-4 rounded-xl border border-gray-200 dark:border-gray-600 shadow-sm"
+          >
+            <div className="flex items-center space-x-3">
+              <div className="w-12 h-12 rounded-full bg-gray-300 dark:bg-gray-600" />
+              <div className="flex-1 space-y-2">
+                <div className="h-4 bg-gray-300 dark:bg-gray-600 rounded w-32" />
+                <div className="h-3 bg-gray-200 dark:bg-gray-500 rounded w-20" />
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  }
 
   return (
     <div className="px-4 space-y-3">
-      {mockRequests.map((request, index) => (
+      {localRequests.map((request, index) => (
         <motion.div
-          key={request.id}
+          key={request._id}
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ delay: index * 0.1 }}
           className="bg-white dark:bg-gray-700 p-4 rounded-xl border border-gray-200 dark:border-gray-600 shadow-sm"
         >
           <div className="flex items-center space-x-3">
-            <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-blue-600 rounded-full flex items-center justify-center">
-              <span className="text-white font-medium">
-                {request.user.avatar}
-              </span>
+            <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-blue-600 rounded-full flex items-center justify-center overflow-hidden">
+              <Image
+                src={request.profileImage || DefaultProfileImage}
+                alt={request.fullName}
+                className="w-full h-full object-cover"
+                height={48}
+                width={48}
+              />
             </div>
 
             <div className="flex-1">
               <h3 className="font-medium text-gray-900 dark:text-white">
-                {request.user.name}
+                {request.fullName}
               </h3>
               <p className="text-sm text-gray-600 dark:text-gray-400">
-                @{request.user.username}
+                @{request.username}
               </p>
             </div>
           </div>
@@ -110,14 +144,18 @@ export function FriendRequests() {
           </div>
         </motion.div>
       ))}
-      <div className="w-full flex justify-end">
 
-      <Link href={"/friend-requests"} target="_blank" className="text-blue-700 dark:text-white">
-        View all requests
-      </Link>
+      <div className="w-full flex justify-end">
+        <Link
+          href={"/friend-requests"}
+          target="_blank"
+          className="text-blue-700 dark:text-white"
+        >
+          View all requests
+        </Link>
       </div>
 
-      {mockRequests.length === 0 && (
+      {requests.length === 0 && !loading && (
         <div className="text-center py-8 text-gray-500 dark:text-gray-400">
           No friend requests
         </div>

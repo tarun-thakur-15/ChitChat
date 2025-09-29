@@ -79,7 +79,7 @@ export function ChatList({
 
       return {
         id: conv._id,
-        type: "conversation" as const, // ✅ Type cast here
+        type: "conversation" as const,
         conversationId: conv._id,
         user: {
           name: other.fullName || other.username || "Unknown",
@@ -92,7 +92,8 @@ export function ChatList({
           timestamp: lastMessageTimestamp,
           isOwn,
         },
-        unreadCount: (conv as any).unreadCount ?? 0,
+        // use newMessagesCount from backend participant object
+        unreadCount: (other as any).newMessagesCount ?? 0,
       };
     }),
 
@@ -205,6 +206,8 @@ export function ChatList({
               )}
             </div>
           </div>
+
+         
         </motion.div>
       ))}
 

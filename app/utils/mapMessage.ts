@@ -5,8 +5,7 @@ import {
 } from "../services/schema";
 
 const telegram_bot_token =
-  process.env.NEXT_PUBLIC_TELEGRAM_TOKEN ||
-  "8010186011:AAH3W3Hog0Fj563D_Pzm0NJZS4zPgymD5VQ";
+  process.env.NEXT_PUBLIC_TELEGRAM_TOKEN;
 
 export function mapMessage(
   apiMsg: ApiMessage | ChatMessageResponse,

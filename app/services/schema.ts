@@ -184,6 +184,7 @@ export interface UserProfile {
   joinedOn: string; // formatted date
   totalFriends: number;
   isFriend: boolean;
+  hasSendFriendRequest: boolean;
 }
 
 export interface UserFriend {
@@ -226,6 +227,7 @@ export interface UserMini {
   username: string;
   fullName: string;
   profileImage?: string;
+  newMessagesCount?: number;
 }
 
 export interface MessageMini {
@@ -245,6 +247,7 @@ export interface Conversation {
 }
 
 export interface GetConversationsResponse {
+  totalFriendRequests: number;
   success: boolean;
   conversations: Conversation[];
   friendsWithoutConversation: UserMini[];
@@ -345,4 +348,21 @@ export interface ChatMessageResponse {
   expiresAt: string;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface FriendRequestUser {
+  _id: string;
+  fullName: string;
+  username: string;
+  profileImage?: string;
+}
+
+export interface GetLastFriendRequestsResponse {
+  success: boolean;
+  requests: FriendRequestUser[];
+}
+
+export interface SendFriendRequestResponse {
+  success: boolean;
+  message: string;
 }
