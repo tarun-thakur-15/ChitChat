@@ -36,6 +36,7 @@ import ChatShat from "../app/images/ChatShat.png";
 import DefaultProfileImage from "../app/images/business-man.png";
 import { startProgress } from "@/app/utils/progress";
 import { UserProvider } from "@/app/context/UserContext";
+import { socket } from "@/socket";
 interface HeaderProps {
   isLoggedInParent: boolean;
   user?: MeResponse["user"];
@@ -79,7 +80,10 @@ export default function Header({ isLoggedInParent, user }: HeaderProps) {
     },
     { id: "/settings", label: "Settings", icon: <Settings /> },
   ];
-  console.log("logged in user details:- ", user);
+  
+  socket.emit("register-user", user?._id);
+  console.log("logged in user details:- ", user?._id);
+     
   return (
     <header className="w-full border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
       {isLoggedin && user ? (

@@ -104,6 +104,7 @@ export interface UploadProfileImageResponse {
 
 export interface MeResponse {
   user: {
+    _id?: string,
     id: string;
     fullName: string;
     username: string;
@@ -305,6 +306,7 @@ export interface ChatMessage {
 }
 
 export interface GetMessagesResponse {
+  conversation: any;
   pagination: any;
   success: boolean;
   messages: Message[];
@@ -345,7 +347,6 @@ export interface ChatMessageResponse {
   mediaUrl?: string;
   status: "sent" | "delivered" | "read";
   seenAt?: string | null;
-  expiresAt: string;
   createdAt: string;
   updatedAt: string;
 }

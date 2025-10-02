@@ -51,6 +51,13 @@ import { SendMessageRequest } from "@/app/services/schema";
 import Link from "next/link";
 import { socket } from "@/socket";
 import ChatSkeleton from "./ChatSkeleton";
+import CallModal from "./CallModal";
+
+//IMAGES
+import Superman from "../app/images/superman_logo.webp";
+import Heart from "../app/images/blueheart.webp";
+import Cat from "../app/images/cat.webp";
+import Couple from "../app/images/couple.webp";
 
 type FileType = "photo" | "video" | "doc" | "audio" | null;
 
@@ -59,6 +66,23 @@ interface Props {
 }
 
 export default function ChatMainComponent({ userId }: Props) {
+  // --- Audio Call States ---
+const [inCall, setInCall] = useState(false);
+const [localStream, setLocalStream] = useState<MediaStream | null>(null);
+const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
+const peerRef = useRef<RTCPeerConnection | null>(null);
+const remoteAudioRef = useRef<HTMLAudioElement | null>(null);
+
+// Modal states for calling
+const [callModalOpen, setCallModalOpen] = useState(false);
+const [isIncomingCall, setIsIncomingCall] = useState(false);
+const [callerName, setCallerName] = useState<string | null>(null);
+const [callStatus, setCallStatus] = useState<
+  "calling" | "ringing" | "in-call" | "rejected" | "ended" | "connecting"
+>("calling");
+
+
+  // -----------------------------------------------
   const { activeChatType, conversationId, friendId } = useChatStore();
   const [loadingMessages, setLoadingMessages] = useState(true);
   const [hasMoreOlderMessages, setHasMoreOlderMessages] = useState(true);
@@ -92,6 +116,290 @@ export default function ChatMainComponent({ userId }: Props) {
     profileImage?: string;
   } | null>(null);
 
+  // ---------- WEBRTC helpers ----------
+// helper to ensure we only create one PC and attach handlers
+const createPeerConnection = (peerUserId: string) => {
+  // Return existing if already created
+  if (peerRef.current) return peerRef.current;
+
+  const pc = new RTCPeerConnection({
+    iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
+  });
+
+  // Remote media container
+  const remote = new MediaStream();
+  setRemoteStream(remote);
+  // attach immediately if audio element exists
+  if (remoteAudioRef.current) {
+    remoteAudioRef.current.srcObject = remote;
+  }
+
+  pc.ontrack = (event) => {
+    // Add incoming tracks to the remote stream
+    event.streams[0].getTracks().forEach((t) => remote.addTrack(t));
+    // ensure audio element has the stream
+    if (remoteAudioRef.current) remoteAudioRef.current.srcObject = remote;
+  };
+
+  pc.onicecandidate = (ev) => {
+    if (ev.candidate) {
+      socket.emit("webrtc:ice-candidate", {
+        to: peerUserId,
+        candidate: ev.candidate,
+      });
+    }
+  };
+
+  pc.onconnectionstatechange = () => {
+    console.log("PC state:", pc.connectionState);
+    if (pc.connectionState === "connected") {
+      setInCall(true);
+      setCallStatus("in-call");
+      setCallModalOpen(false); // hide modal once media path is live
+    } else if (
+      pc.connectionState === "disconnected" ||
+      pc.connectionState === "failed" ||
+      pc.connectionState === "closed"
+    ) {
+      // cleanup
+      handleHangUp(false);
+    }
+  };
+
+  peerRef.current = pc;
+  return pc;
+};
+
+// Caller: after callee accepts, caller creates offer
+const startCallAfterAccepted = async (calleeId: string) => {
+  if (!calleeId) return;
+  try {
+    setCallStatus("connecting");
+    const pc = createPeerConnection(calleeId);
+
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    setLocalStream(stream);
+    stream.getTracks().forEach((t) => pc.addTrack(t, stream));
+
+    const offer = await pc.createOffer();
+    await pc.setLocalDescription(offer);
+
+    socket.emit("webrtc:offer", { to: calleeId, offer });
+    // now wait for answer
+  } catch (err) {
+    console.error("startCallAfterAccepted error:", err);
+    handleHangUp(false);
+  }
+};
+
+// Callee: handle incoming offer
+const handleReceivedOffer = async (fromId: string, offer: any) => {
+  try {
+    setCallStatus("connecting");
+    const pc = createPeerConnection(fromId);
+
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    setLocalStream(stream);
+    stream.getTracks().forEach((t) => pc.addTrack(t, stream));
+
+    await pc.setRemoteDescription(new RTCSessionDescription(offer));
+    const answer = await pc.createAnswer();
+    await pc.setLocalDescription(answer);
+
+    socket.emit("webrtc:answer", { to: fromId, answer });
+    // onconnectionstatechange will pick up connected state
+  } catch (err) {
+    console.error("handleReceivedOffer error:", err);
+    socket.emit("webrtc:reject", { from: userId, to: fromId });
+    handleHangUp(false);
+  }
+};
+
+const handleReceivedAnswer = async (answer: any) => {
+  if (!peerRef.current) {
+    console.warn("No peer ref to apply answer");
+    return;
+  }
+  await peerRef.current.setRemoteDescription(new RTCSessionDescription(answer));
+};
+
+const handleAddIceCandidate = async (candidate: any) => {
+  if (!peerRef.current) return;
+  try {
+    await peerRef.current.addIceCandidate(new RTCIceCandidate(candidate));
+  } catch (err) {
+    console.warn("Failed to add remote ICE candidate:", err);
+  }
+};
+
+// Hang up: stop local tracks, close pc, notify peer (optionally)
+const handleHangUp = (notifyPeer = true) => {
+  try {
+    localStream?.getTracks().forEach((t) => t.stop());
+  } catch (e) {}
+  try {
+    if (peerRef.current) {
+      peerRef.current.ontrack = null;
+      peerRef.current.onicecandidate = null;
+      peerRef.current.onconnectionstatechange = null;
+      peerRef.current.close();
+    }
+  } catch (e) {}
+  peerRef.current = null;
+
+  setLocalStream(null);
+  setRemoteStream(null);
+  setInCall(false);
+  setCallModalOpen(false);
+  setIsIncomingCall(false);
+  setCallerName(null);
+  setCallStatus("ended");
+
+  if (notifyPeer && receiverId) {
+    socket.emit("webrtc:hangup", { from: userId, to: receiverId });
+  }
+};
+
+// ---------- Socket listeners for call flow ----------
+useEffect(() => {
+  if (!socket) return;
+
+  // Incoming call notification from server
+  const onIncomingCall = ({ from, callerName }: { from: string; callerName?: string }) => {
+    console.log("incoming call", from, callerName);
+    setCallerName(callerName || "Unknown");
+    setIsIncomingCall(true);
+    setCallStatus("ringing");
+    setCallModalOpen(true);
+    setReceiverId(from);
+  };
+
+  // Caller side: callee rejected
+  const onCallRejected = ({ from }: { from: string }) => {
+    console.log("call rejected by", from);
+    setCallStatus("rejected");
+    setCallModalOpen(false);
+    handleHangUp(false);
+  };
+
+  // Caller side: callee accepted → caller should start offer
+  const onCallAccepted = ({ from }: { from: string }) => {
+    console.log("call accepted by", from);
+    setCallModalOpen(false);
+    // 'from' is callee id; start offer flow
+    startCallAfterAccepted(from);
+  };
+
+  const onOffer = async ({ from, offer }: { from: string; offer: any }) => {
+    console.log("offer from", from);
+    await handleReceivedOffer(from, offer);
+  };
+
+  const onAnswer = async ({ from, answer }: { from: string; answer: any }) => {
+    console.log("answer from", from);
+    await handleReceivedAnswer(answer);
+  };
+
+  const onIce = async ({ from, candidate }: { from: string; candidate: any }) => {
+    await handleAddIceCandidate(candidate);
+  };
+
+  const onHangup = ({ from }: { from: string }) => {
+    console.log("remote hangup by", from);
+    handleHangUp(false);
+  };
+
+  const onCallStatus = ({ status, with: peerId }: { status: string; with: string }) => {
+    console.log("call-status", status, peerId);
+    setCallStatus(status as any);
+
+    if (status === "rejected") {
+      setCallModalOpen(false);
+      handleHangUp(false);
+    }
+    if (status === "in-call") {
+      setInCall(true);
+      setCallModalOpen(false);
+    }
+    if (status === "ended") {
+      handleHangUp(false);
+    }
+    if (status === "ringing") {
+      setCallModalOpen(true);
+      setIsIncomingCall(true);
+    }
+  };
+
+  // register listeners (names match backend)
+  socket.on("webrtc:incoming-call", onIncomingCall);
+  socket.on("webrtc:call-rejected", onCallRejected);
+  socket.on("webrtc:call-accepted", onCallAccepted);
+  socket.on("webrtc:offer", onOffer);
+  socket.on("webrtc:answer", onAnswer);
+  socket.on("webrtc:ice-candidate", onIce);
+  socket.on("webrtc:hangup", onHangup);
+  socket.on("call-status", onCallStatus);
+
+  return () => {
+    socket.off("webrtc:incoming-call", onIncomingCall);
+    socket.off("webrtc:call-rejected", onCallRejected);
+    socket.off("webrtc:call-accepted", onCallAccepted);
+    socket.off("webrtc:offer", onOffer);
+    socket.off("webrtc:answer", onAnswer);
+    socket.off("webrtc:ice-candidate", onIce);
+    socket.off("webrtc:hangup", onHangup);
+    socket.off("call-status", onCallStatus);
+  };
+// eslint-disable-next-line react-hooks/exhaustive-deps
+}, [socket, receiverId]);
+
+// cleanup on component unmount
+useEffect(() => {
+  return () => {
+    handleHangUp(false);
+  };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, []);
+
+// ---------- Outgoing call trigger (opens modal and signals peer) ----------
+const onClickCallButton = () => {
+  if (!chatPartner) return console.log("chatPartner not found");
+
+  const calleeId = chatPartner._id;
+  setReceiverId(calleeId);
+  setCallerName(chatPartner.fullName);
+  setIsIncomingCall(false);
+  setCallStatus("calling");
+  setCallModalOpen(true);
+
+  socket.emit("webrtc:call", { from: userId, to: calleeId, callerName: chatPartner.fullName });
+};
+
+// ---------- Accept / Decline handlers from modal ----------
+const onAcceptCall = () => {
+  if (!receiverId) {
+    console.warn("No receiverId found when accepting call");
+    return;
+  }
+  // notify backend: from=callee (you), to=caller
+  socket.emit("webrtc:accept", { from: userId, to: receiverId });
+
+  setCallStatus("connecting");
+  // Do NOT close modal yet — wait for offer/answer/connected
+};
+
+const onDeclineCall = () => {
+  if (!receiverId) {
+    setCallModalOpen(false);
+    setIsIncomingCall(false);
+    return;
+  }
+  socket.emit("webrtc:reject", { from: userId, to: receiverId });
+  setCallModalOpen(false);
+  setIsIncomingCall(false);
+  setCallStatus("rejected");
+};
+
   // Scroll to bottom
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -105,127 +413,156 @@ export default function ChatMainComponent({ userId }: Props) {
 
   // Load messages when active chat changes
 
-  useEffect(() => {
-    if (!activeChatType) return;
+useEffect(() => {
+  if (!activeChatType) return;
 
-    let convId: string | null = conversationId ?? null;
+  let convId: string | null = conversationId ?? null;
 
-    async function setupChat() {
-      try {
-        setLoadingMessages(true);
-        if (activeChatType === "friend" && friendId) {
-          const convRes: StartConversationResponse = await startConversationApi(
-            {
-              receiverId: friendId,
-            }
+  async function setupChat() {
+    try {
+      setLoadingMessages(true);
+
+      let participants: any[] = [];
+
+      // If starting a conversation
+      if (activeChatType === "friend" && friendId) {
+        const convRes: StartConversationResponse = await startConversationApi({
+          receiverId: friendId,
+        });
+        convId = convRes.conversation._id;
+        participants = convRes.conversation.participants || [];
+      }
+
+      if (!convId) return;
+
+      setActiveConversationId(convId);
+
+      const msgsRes = await getMessagesApi(convId, 10);
+
+      // ✅ Always get participants from API
+      if (msgsRes.conversation?.participants) {
+        participants = msgsRes.conversation.participants;
+      }
+
+      const mappedMessages = msgsRes.messages.map((m) =>
+        mapMessage(m, userId)
+      );
+      setMessages(mappedMessages);
+
+      if (msgsRes.messages.length > 0) {
+        const firstMsg = msgsRes.messages[0];
+        const partner =
+          firstMsg.sender._id === userId
+            ? firstMsg.receiver
+            : firstMsg.sender;
+
+        setReceiverId(partner._id);
+        setChatPartner({
+          _id: partner._id,
+          fullName: partner.fullName || null,
+          username: partner.username,
+          profileImage: partner.profileImage,
+        });
+      } else {
+        // ✅ fallback: no messages, use participants array
+        if (participants.length > 0) {
+          const partner = participants.find(
+            (p) => p._id.toString() !== userId.toString()
           );
-          convId = convRes.conversation._id;
-        }
-
-        if (!convId) return;
-
-        // ✅ Save to state so other functions (like handleLoadOlder) can use it
-        setActiveConversationId(convId);
-
-        const msgsRes = await getMessagesApi(convId, 10);
-        const mappedMessages = msgsRes.messages.map((m) =>
-          mapMessage(m, userId)
-        );
-        setMessages(mappedMessages);
-
-        if (msgsRes.messages.length > 0) {
-          const firstMsg = msgsRes.messages[0];
-          const partner =
-            firstMsg.sender._id === userId
-              ? firstMsg.receiver
-              : firstMsg.sender;
-
-          setReceiverId(partner._id);
-          setChatPartner({
-            _id: partner._id,
-            fullName: partner.fullName,
-            username: partner.username,
-            profileImage: partner.profileImage,
-          });
-        }
-
-        socket.emit("conversation:join", { conversationId: convId });
-
-        const handleReceiveMessage = (msg: any) => {
-          if (!convId) return;
-          if (msg.conversation.toString() === convId.toString()) {
-            setMessages((prev) => {
-              const msgId = msg._id || msg.id;
-              if (prev.some((m) => m.id === msgId)) return prev; // prevent duplicates
-              return [...prev, mapMessage(msg, userId)];
+          if (partner) {
+            setReceiverId(partner._id);
+            setChatPartner({
+              _id: partner._id,
+              fullName: partner.fullName,
+              username: partner.username,
+              profileImage: partner.profileImage,
             });
           }
-        };
-
-        socket.on("receiveMessage", handleReceiveMessage);
-
-        socket.on("messageSeen", ({ messageId }) => {
-          setMessages((prev: any) =>
-            prev.map((m: any) =>
-              m._id === messageId ? { ...m, status: "seen" } : m
-            )
-          );
-        });
-
-        return () => {
-          if (convId) {
-            socket.emit("conversation:leave", { conversationId: convId });
-          }
-          socket.off("receiveMessage", handleReceiveMessage);
-          socket.off("messageSeen");
-        };
-      } catch (error) {
-        console.error("❌ Error setting up chat:", error);
-      } finally {
-        setLoadingMessages(false);
+        }
       }
-    }
 
-    setupChat();
-  }, [activeChatType, conversationId, friendId, userId]);
+      socket.emit("conversation:join", { conversationId: convId });
+
+      const handleReceiveMessage = (msg: any) => {
+        if (!convId) return;
+        if (msg.conversation.toString() === convId.toString()) {
+          setMessages((prev) => {
+            const msgId = msg._id || msg.id;
+            if (prev.some((m) => m.id === msgId)) return prev;
+            return [...prev, mapMessage(msg, userId)];
+          });
+        }
+      };
+
+      socket.on("receiveMessage", handleReceiveMessage);
+
+      socket.on("messageSeen", ({ messageId }) => {
+        setMessages((prev: any) =>
+          prev.map((m: any) =>
+            m._id === messageId ? { ...m, status: "seen" } : m
+          )
+        );
+      });
+
+      return () => {
+        if (convId) {
+          socket.emit("conversation:leave", { conversationId: convId });
+        }
+        socket.off("receiveMessage", handleReceiveMessage);
+        socket.off("messageSeen");
+      };
+    } catch (error) {
+      console.error("❌ Error setting up chat:", error);
+    } finally {
+      setLoadingMessages(false);
+    }
+  }
+
+  setupChat();
+}, [activeChatType, conversationId, friendId, userId]);
+
+
 
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
 
-const handleLoadOlder = async () => {
-  if (!hasMoreOlderMessages || !activeConversationId || messages.length === 0) {
-    return console.log("inside if statement");
-  }
+  const handleLoadOlder = async () => {
+    if (
+      !hasMoreOlderMessages ||
+      !activeConversationId ||
+      messages.length === 0
+    ) {
+      return console.log("inside if statement");
+    }
 
-  setIsLoadingOlder(true);
+    setIsLoadingOlder(true);
 
-  const el = chatRef.current;
-  if (!el) return;
-
-  const scrollHeightBefore = el.scrollHeight;
-
-  const oldestMsg = messages[0];
-  const before = oldestMsg.timestamp.toISOString();
-
-  console.log("reached just above the api call");
-  const olderRes = await getMessagesApi(activeConversationId, 10, before);
-
-  // ✅ Update hasMoreOlderMessages here
-  setHasMoreOlderMessages(olderRes.pagination.hasMore);
-
-  const olderMapped = olderRes.messages.map((m) => mapMessage(m, userId));
-
-  setMessages((prev) => [...olderMapped, ...prev]);
-
-  setTimeout(() => {
+    const el = chatRef.current;
     if (!el) return;
-    const scrollHeightAfter = el.scrollHeight;
-    el.scrollTop = scrollHeightAfter - scrollHeightBefore;
-    setIsLoadingOlder(false);
-  }, 50);
-};
 
+    const scrollHeightBefore = el.scrollHeight;
+
+    const oldestMsg = messages[0];
+    const before = oldestMsg.timestamp.toISOString();
+
+    console.log("reached just above the api call");
+    const olderRes = await getMessagesApi(activeConversationId, 10, before);
+
+    // ✅ Update hasMoreOlderMessages here
+    setHasMoreOlderMessages(olderRes.pagination.hasMore);
+
+    const olderMapped = olderRes.messages.map((m) => mapMessage(m, userId));
+
+    setMessages((prev) => [...olderMapped, ...prev]);
+
+    setTimeout(() => {
+      if (!el) return;
+      const scrollHeightAfter = el.scrollHeight;
+      el.scrollTop = scrollHeightAfter - scrollHeightBefore;
+      setIsLoadingOlder(false);
+    }, 50);
+  };
 
   useEffect(() => {
     const el = chatRef.current;
@@ -326,23 +663,59 @@ const handleLoadOlder = async () => {
       console.error("❌ Error sending message:", err);
     }
   };
+ function DateBadge({ date }: { date: Date }) {
+    const today = new Date();
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
 
+    const isToday = date.toDateString() === today.toDateString();
+    const isYesterday = date.toDateString() === yesterday.toDateString();
+
+    let label = "";
+
+    if (isToday) label = "Today";
+    else if (isYesterday) label = "Yesterday";
+    else
+      label = date.toLocaleDateString(undefined, {
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+      });
+
+    return (
+      <div className="flex justify-center my-4">
+        <div className="bg-[#1D1F1F] rounded-[6px] text-center px-3 py-1">
+          <span className="text-[12px] text-white">{label}</span>
+        </div>
+      </div>
+    );
+  }
   // 🎨 render bubbles
+let lastMessageDate: string | null = null;
+
 const renderMessages = () =>
   loadingMessages ? (
-    <ChatSkeleton/>
+    <ChatSkeleton />
   ) : (
-    messages.map((bubbleMsg, index) => (
-      <motion.div
-        key={bubbleMsg.id}
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: index * 0.05 }}
-      >
-        <ChatBubble message={bubbleMsg} />
-      </motion.div>
-    ))
+    messages.map((bubbleMsg, index) => {
+      const messageDate = new Date(bubbleMsg.timestamp).toDateString();
+      const showDateBadge = messageDate !== lastMessageDate;
+      lastMessageDate = messageDate;
+
+      return (
+        <motion.div
+          key={bubbleMsg.id}
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: index * 0.05 }}
+        >
+          {showDateBadge && <DateBadge date={bubbleMsg.timestamp} />}
+          <ChatBubble message={bubbleMsg} />
+        </motion.div>
+      );
+    })
   );
+
 
   // Don’t render anything if no chat is selected
   if (!activeChatType) {
@@ -430,12 +803,13 @@ const renderMessages = () =>
           </div>
 
           <div className="flex items-center space-x-2">
-            <button className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">
+            <button
+              onClick={onClickCallButton}
+              className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+            >
               <Phone className="w-5 h-5 text-gray-600 dark:text-gray-400" />
             </button>
-            <button className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">
-              <Video className="w-5 h-5 text-gray-600 dark:text-gray-400" />
-            </button>
+
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">
@@ -485,7 +859,43 @@ const renderMessages = () =>
       {/* Messages */}
       <div
         ref={chatRef}
-        className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-100 dark:bg-gray-800 relative"
+        className={`flex-1 overflow-y-auto p-4 space-y-4 ${
+          theme === "Superman"
+            ? "bg-blue-700"
+            : theme === "Hearts"
+            ? "bg-pink-500"
+            : "bg-gray-100 dark:bg-gray-800"
+        } relative`}         style={
+                  theme === "Superman"
+                    ? {
+                        backgroundImage: `url(${Superman.src})`,
+                        backgroundRepeat: "no-repeat",
+                        backgroundPosition: "center",
+                        backgroundSize: "250px",
+                      }
+                    : theme === "Hearts"
+                    ? {
+                        backgroundImage: `url(${Heart.src})`,
+                        backgroundRepeat: "no-repeat",
+                        backgroundPosition: "center",
+                        backgroundSize: "250px",
+                      }
+                    : theme === "Cat"
+                    ? {
+                        backgroundImage: `url(${Cat.src})`,
+                        backgroundSize: "cover",
+                        backgroundRepeat: "no-repeat",
+                        backgroundPosition: "center",
+                      }
+                    : theme === "Couple"
+                    ? {
+                        backgroundImage: `url(${Couple.src})`,
+                        backgroundSize: "cover",
+                        backgroundRepeat: "no-repeat",
+                        backgroundPosition: "center",
+                      }
+                    : {}
+                }
       >
         {isLoadingOlder && (
           <div className="text-center text-sm text-gray-500 dark:text-gray-400 mb-2">
@@ -610,6 +1020,31 @@ const renderMessages = () =>
           />
         </div>
       </div>
+      {/* Hidden audio tag for playing remote audio */}
+      <audio ref={remoteAudioRef} autoPlay playsInline />
+      {/* Call Modal */}
+      <CallModal
+        open={callModalOpen}
+        isIncoming={isIncomingCall}
+        callerName={callerName || (chatPartner?.fullName ?? "")}
+        status={callStatus}
+        onAccept={onAcceptCall}
+        onDecline={onDeclineCall}
+      />
+      {/* in-call small control (shows when inCall true) */}
+      {inCall && (
+        <div className="fixed bottom-6 right-6 bg-white dark:bg-gray-900 p-3 rounded-2xl shadow-lg flex items-center gap-3">
+          <div className="text-sm font-medium">
+            {chatPartner?.fullName ?? "In Call"}
+          </div>
+          <button
+            onClick={() => handleHangUp(true)}
+            className="px-3 py-1 bg-red-500 hover:bg-red-600 text-white rounded-lg"
+          >
+            End Call
+          </button>
+        </div>
+      )}
     </div>
   );
 }

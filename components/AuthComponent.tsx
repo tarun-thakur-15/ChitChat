@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import Image from "next/image";
@@ -20,8 +20,13 @@ import {
 import OTPInput from "react-otp-input";
 import { useRouter } from "next/navigation";
 import ChatShat from "../app/images/ChatShat.png";
-
-export default function AuthComponent() {
+import { socket } from "@/socket";
+import { MeResponse } from "@/app/services/schema";
+interface HeaderProps {
+  isLoggedInParent: boolean;
+  user?: MeResponse["user"];
+}
+export default function AuthComponent({ isLoggedInParent, user }: HeaderProps) {
   const [isLogin, setIsLogin] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
   const [loginFormLevel, setLoginFormLevel] = useState(1);
@@ -48,6 +53,7 @@ export default function AuthComponent() {
           });
 
           toast.success(data.message || "Login Successfull🎉");
+
           window.location.reload();
         } else if (loginFormLevel === 2) {
           const data = await forgotPasswordApi({
@@ -90,6 +96,12 @@ export default function AuthComponent() {
       toast.error(err.response?.data.message);
     }
   };
+  useEffect(() => {
+    if (isLoggedInParent && user?._id) {
+      console.log("📢 Registering user with socket:", user._id);
+      socket.emit("register-user", user._id);
+    }
+  }, [isLoggedInParent, user]);
   return (
     <>
       <motion.div
@@ -111,10 +123,12 @@ export default function AuthComponent() {
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
             ChatWave
           </h1> */}
-          <Image src={ChatShat} alt="ChatShat" className="h-[200px] w-auto justify-self-center" />
-          <p className="text-gray-600 dark:text-gray-400">
-            Baatein Unlimited
-          </p>
+          <Image
+            src={ChatShat}
+            alt="ChatShat"
+            className="h-[200px] w-auto justify-self-center"
+          />
+          <p className="text-gray-600 dark:text-gray-400">Baatein Unlimited</p>
         </div>
 
         {/* Auth Form */}
