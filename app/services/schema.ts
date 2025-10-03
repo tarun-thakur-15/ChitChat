@@ -104,7 +104,7 @@ export interface UploadProfileImageResponse {
 
 export interface MeResponse {
   user: {
-    _id?: string,
+    _id?: string;
     id: string;
     fullName: string;
     username: string;
@@ -268,13 +268,14 @@ export interface Message {
   content: string;
   mediaUrl?: string;
   createdAt: string;
-   fileSize?: string;
+  fileSize?: string;
 }
 
 export interface ApiMessage {
   _id: string;
   message: string;
   mediaUrl?: string;
+  fileType?: string;
   fileSize?: string;
   status: "sent" | "delivered" | "read";
   createdAt: string;
@@ -296,13 +297,14 @@ export interface ApiMessage {
 
 export interface ChatMessage {
   id: string;
-  content: string;
-  type: "text" | "image" | "file";
+  content: string | null;
+  type: "text" | "image" | "file" | "video" | "audio";
   isOwn: boolean;
   timestamp: Date;
   status: "sent" | "delivered" | "read";
   fileName?: string;
   fileSize?: string;
+  fileType?: string;
 }
 
 export interface GetMessagesResponse {
@@ -339,12 +341,13 @@ export interface SendMessageRequest {
 export interface ChatMessageResponse {
   _id: string;
   conversation: string;
-  sender: string | UserMini;   // ⬅ correct: could be string or populated object
+  sender: string | UserMini; // ⬅ correct: could be string or populated object
   receiver: string | UserMini; // ⬅ correct
   message: string;
   fileName?: string;
   fileSize?: number;
   mediaUrl?: string;
+  fileType?: string;
   status: "sent" | "delivered" | "read";
   seenAt?: string | null;
   createdAt: string;

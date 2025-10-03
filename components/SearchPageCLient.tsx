@@ -65,7 +65,7 @@ export default function SearchPageClientSide({ userId }: Props) {
         socket.on("conversation:update", (data) => {
           console.log("💬 Conversation updated via socket:", data);
 
-          if (data.conversations && data.conversations.length > 0) {
+          if (data?.conversations && data?.conversations?.length > 0) {
             setData((prev: any) => {
               const updatedConvo = data.conversations[0];
               const updatedConversations = prev.conversations.map((c: any) =>

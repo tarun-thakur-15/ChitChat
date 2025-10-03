@@ -67,20 +67,19 @@ interface Props {
 
 export default function ChatMainComponent({ userId }: Props) {
   // --- Audio Call States ---
-const [inCall, setInCall] = useState(false);
-const [localStream, setLocalStream] = useState<MediaStream | null>(null);
-const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
-const peerRef = useRef<RTCPeerConnection | null>(null);
-const remoteAudioRef = useRef<HTMLAudioElement | null>(null);
+  const [inCall, setInCall] = useState(false);
+  const [localStream, setLocalStream] = useState<MediaStream | null>(null);
+  const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
+  const peerRef = useRef<RTCPeerConnection | null>(null);
+  const remoteAudioRef = useRef<HTMLAudioElement | null>(null);
 
-// Modal states for calling
-const [callModalOpen, setCallModalOpen] = useState(false);
-const [isIncomingCall, setIsIncomingCall] = useState(false);
-const [callerName, setCallerName] = useState<string | null>(null);
-const [callStatus, setCallStatus] = useState<
-  "calling" | "ringing" | "in-call" | "rejected" | "ended" | "connecting"
->("calling");
-
+  // Modal states for calling
+  const [callModalOpen, setCallModalOpen] = useState(false);
+  const [isIncomingCall, setIsIncomingCall] = useState(false);
+  const [callerName, setCallerName] = useState<string | null>(null);
+  const [callStatus, setCallStatus] = useState<
+    "calling" | "ringing" | "in-call" | "rejected" | "ended" | "connecting"
+  >("calling");
 
   // -----------------------------------------------
   const { activeChatType, conversationId, friendId } = useChatStore();
@@ -117,288 +116,318 @@ const [callStatus, setCallStatus] = useState<
   } | null>(null);
 
   // ---------- WEBRTC helpers ----------
-// helper to ensure we only create one PC and attach handlers
-const createPeerConnection = (peerUserId: string) => {
-  // Return existing if already created
-  if (peerRef.current) return peerRef.current;
+  // helper to ensure we only create one PC and attach handlers
+  const createPeerConnection = (peerUserId: string) => {
+    // Return existing if already created
+    if (peerRef.current) return peerRef.current;
 
-  const pc = new RTCPeerConnection({
-    iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
-  });
+    const pc = new RTCPeerConnection({
+      iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
+    });
 
-  // Remote media container
-  const remote = new MediaStream();
-  setRemoteStream(remote);
-  // attach immediately if audio element exists
-  if (remoteAudioRef.current) {
-    remoteAudioRef.current.srcObject = remote;
-  }
-
-  pc.ontrack = (event) => {
-    // Add incoming tracks to the remote stream
-    event.streams[0].getTracks().forEach((t) => remote.addTrack(t));
-    // ensure audio element has the stream
-    if (remoteAudioRef.current) remoteAudioRef.current.srcObject = remote;
-  };
-
-  pc.onicecandidate = (ev) => {
-    if (ev.candidate) {
-      socket.emit("webrtc:ice-candidate", {
-        to: peerUserId,
-        candidate: ev.candidate,
-      });
+    // Remote media container
+    const remote = new MediaStream();
+    setRemoteStream(remote);
+    // attach immediately if audio element exists
+    if (remoteAudioRef.current) {
+      remoteAudioRef.current.srcObject = remote;
     }
+
+    pc.ontrack = (event) => {
+      // Add incoming tracks to the remote stream
+      event.streams[0].getTracks().forEach((t) => remote.addTrack(t));
+      // ensure audio element has the stream
+      if (remoteAudioRef.current) remoteAudioRef.current.srcObject = remote;
+    };
+
+    pc.onicecandidate = (ev) => {
+      if (ev.candidate) {
+        socket.emit("webrtc:ice-candidate", {
+          to: peerUserId,
+          candidate: ev.candidate,
+        });
+      }
+    };
+
+    pc.onconnectionstatechange = () => {
+      console.log("PC state:", pc.connectionState);
+      if (pc.connectionState === "connected") {
+        setInCall(true);
+        setCallStatus("in-call");
+        setCallModalOpen(false); // hide modal once media path is live
+      } else if (
+        pc.connectionState === "disconnected" ||
+        pc.connectionState === "failed" ||
+        pc.connectionState === "closed"
+      ) {
+        // cleanup
+        handleHangUp(false);
+      }
+    };
+
+    peerRef.current = pc;
+    return pc;
   };
 
-  pc.onconnectionstatechange = () => {
-    console.log("PC state:", pc.connectionState);
-    if (pc.connectionState === "connected") {
-      setInCall(true);
-      setCallStatus("in-call");
-      setCallModalOpen(false); // hide modal once media path is live
-    } else if (
-      pc.connectionState === "disconnected" ||
-      pc.connectionState === "failed" ||
-      pc.connectionState === "closed"
-    ) {
-      // cleanup
+  // Caller: after callee accepts, caller creates offer
+  const startCallAfterAccepted = async (calleeId: string) => {
+    if (!calleeId) return;
+    try {
+      setCallStatus("connecting");
+      const pc = createPeerConnection(calleeId);
+
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      setLocalStream(stream);
+      stream.getTracks().forEach((t) => pc.addTrack(t, stream));
+
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
+
+      socket.emit("webrtc:offer", { to: calleeId, offer });
+      // now wait for answer
+    } catch (err) {
+      console.error("startCallAfterAccepted error:", err);
       handleHangUp(false);
     }
   };
 
-  peerRef.current = pc;
-  return pc;
-};
+  // Callee: handle incoming offer
+  const handleReceivedOffer = async (fromId: string, offer: any) => {
+    try {
+      setCallStatus("connecting");
+      const pc = createPeerConnection(fromId);
 
-// Caller: after callee accepts, caller creates offer
-const startCallAfterAccepted = async (calleeId: string) => {
-  if (!calleeId) return;
-  try {
-    setCallStatus("connecting");
-    const pc = createPeerConnection(calleeId);
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      setLocalStream(stream);
+      stream.getTracks().forEach((t) => pc.addTrack(t, stream));
 
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    setLocalStream(stream);
-    stream.getTracks().forEach((t) => pc.addTrack(t, stream));
+      await pc.setRemoteDescription(new RTCSessionDescription(offer));
+      const answer = await pc.createAnswer();
+      await pc.setLocalDescription(answer);
 
-    const offer = await pc.createOffer();
-    await pc.setLocalDescription(offer);
-
-    socket.emit("webrtc:offer", { to: calleeId, offer });
-    // now wait for answer
-  } catch (err) {
-    console.error("startCallAfterAccepted error:", err);
-    handleHangUp(false);
-  }
-};
-
-// Callee: handle incoming offer
-const handleReceivedOffer = async (fromId: string, offer: any) => {
-  try {
-    setCallStatus("connecting");
-    const pc = createPeerConnection(fromId);
-
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    setLocalStream(stream);
-    stream.getTracks().forEach((t) => pc.addTrack(t, stream));
-
-    await pc.setRemoteDescription(new RTCSessionDescription(offer));
-    const answer = await pc.createAnswer();
-    await pc.setLocalDescription(answer);
-
-    socket.emit("webrtc:answer", { to: fromId, answer });
-    // onconnectionstatechange will pick up connected state
-  } catch (err) {
-    console.error("handleReceivedOffer error:", err);
-    socket.emit("webrtc:reject", { from: userId, to: fromId });
-    handleHangUp(false);
-  }
-};
-
-const handleReceivedAnswer = async (answer: any) => {
-  if (!peerRef.current) {
-    console.warn("No peer ref to apply answer");
-    return;
-  }
-  await peerRef.current.setRemoteDescription(new RTCSessionDescription(answer));
-};
-
-const handleAddIceCandidate = async (candidate: any) => {
-  if (!peerRef.current) return;
-  try {
-    await peerRef.current.addIceCandidate(new RTCIceCandidate(candidate));
-  } catch (err) {
-    console.warn("Failed to add remote ICE candidate:", err);
-  }
-};
-
-// Hang up: stop local tracks, close pc, notify peer (optionally)
-const handleHangUp = (notifyPeer = true) => {
-  try {
-    localStream?.getTracks().forEach((t) => t.stop());
-  } catch (e) {}
-  try {
-    if (peerRef.current) {
-      peerRef.current.ontrack = null;
-      peerRef.current.onicecandidate = null;
-      peerRef.current.onconnectionstatechange = null;
-      peerRef.current.close();
-    }
-  } catch (e) {}
-  peerRef.current = null;
-
-  setLocalStream(null);
-  setRemoteStream(null);
-  setInCall(false);
-  setCallModalOpen(false);
-  setIsIncomingCall(false);
-  setCallerName(null);
-  setCallStatus("ended");
-
-  if (notifyPeer && receiverId) {
-    socket.emit("webrtc:hangup", { from: userId, to: receiverId });
-  }
-};
-
-// ---------- Socket listeners for call flow ----------
-useEffect(() => {
-  if (!socket) return;
-
-  // Incoming call notification from server
-  const onIncomingCall = ({ from, callerName }: { from: string; callerName?: string }) => {
-    console.log("incoming call", from, callerName);
-    setCallerName(callerName || "Unknown");
-    setIsIncomingCall(true);
-    setCallStatus("ringing");
-    setCallModalOpen(true);
-    setReceiverId(from);
-  };
-
-  // Caller side: callee rejected
-  const onCallRejected = ({ from }: { from: string }) => {
-    console.log("call rejected by", from);
-    setCallStatus("rejected");
-    setCallModalOpen(false);
-    handleHangUp(false);
-  };
-
-  // Caller side: callee accepted → caller should start offer
-  const onCallAccepted = ({ from }: { from: string }) => {
-    console.log("call accepted by", from);
-    setCallModalOpen(false);
-    // 'from' is callee id; start offer flow
-    startCallAfterAccepted(from);
-  };
-
-  const onOffer = async ({ from, offer }: { from: string; offer: any }) => {
-    console.log("offer from", from);
-    await handleReceivedOffer(from, offer);
-  };
-
-  const onAnswer = async ({ from, answer }: { from: string; answer: any }) => {
-    console.log("answer from", from);
-    await handleReceivedAnswer(answer);
-  };
-
-  const onIce = async ({ from, candidate }: { from: string; candidate: any }) => {
-    await handleAddIceCandidate(candidate);
-  };
-
-  const onHangup = ({ from }: { from: string }) => {
-    console.log("remote hangup by", from);
-    handleHangUp(false);
-  };
-
-  const onCallStatus = ({ status, with: peerId }: { status: string; with: string }) => {
-    console.log("call-status", status, peerId);
-    setCallStatus(status as any);
-
-    if (status === "rejected") {
-      setCallModalOpen(false);
+      socket.emit("webrtc:answer", { to: fromId, answer });
+      // onconnectionstatechange will pick up connected state
+    } catch (err) {
+      console.error("handleReceivedOffer error:", err);
+      socket.emit("webrtc:reject", { from: userId, to: fromId });
       handleHangUp(false);
     }
-    if (status === "in-call") {
-      setInCall(true);
-      setCallModalOpen(false);
+  };
+
+  const handleReceivedAnswer = async (answer: any) => {
+    if (!peerRef.current) {
+      console.warn("No peer ref to apply answer");
+      return;
     }
-    if (status === "ended") {
-      handleHangUp(false);
-    }
-    if (status === "ringing") {
-      setCallModalOpen(true);
-      setIsIncomingCall(true);
+    await peerRef.current.setRemoteDescription(
+      new RTCSessionDescription(answer)
+    );
+  };
+
+  const handleAddIceCandidate = async (candidate: any) => {
+    if (!peerRef.current) return;
+    try {
+      await peerRef.current.addIceCandidate(new RTCIceCandidate(candidate));
+    } catch (err) {
+      console.warn("Failed to add remote ICE candidate:", err);
     }
   };
 
-  // register listeners (names match backend)
-  socket.on("webrtc:incoming-call", onIncomingCall);
-  socket.on("webrtc:call-rejected", onCallRejected);
-  socket.on("webrtc:call-accepted", onCallAccepted);
-  socket.on("webrtc:offer", onOffer);
-  socket.on("webrtc:answer", onAnswer);
-  socket.on("webrtc:ice-candidate", onIce);
-  socket.on("webrtc:hangup", onHangup);
-  socket.on("call-status", onCallStatus);
+  // Hang up: stop local tracks, close pc, notify peer (optionally)
+  const handleHangUp = (notifyPeer = true) => {
+    try {
+      localStream?.getTracks().forEach((t) => t.stop());
+    } catch (e) {}
+    try {
+      if (peerRef.current) {
+        peerRef.current.ontrack = null;
+        peerRef.current.onicecandidate = null;
+        peerRef.current.onconnectionstatechange = null;
+        peerRef.current.close();
+      }
+    } catch (e) {}
+    peerRef.current = null;
 
-  return () => {
-    socket.off("webrtc:incoming-call", onIncomingCall);
-    socket.off("webrtc:call-rejected", onCallRejected);
-    socket.off("webrtc:call-accepted", onCallAccepted);
-    socket.off("webrtc:offer", onOffer);
-    socket.off("webrtc:answer", onAnswer);
-    socket.off("webrtc:ice-candidate", onIce);
-    socket.off("webrtc:hangup", onHangup);
-    socket.off("call-status", onCallStatus);
-  };
-// eslint-disable-next-line react-hooks/exhaustive-deps
-}, [socket, receiverId]);
-
-// cleanup on component unmount
-useEffect(() => {
-  return () => {
-    handleHangUp(false);
-  };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-}, []);
-
-// ---------- Outgoing call trigger (opens modal and signals peer) ----------
-const onClickCallButton = () => {
-  if (!chatPartner) return console.log("chatPartner not found");
-
-  const calleeId = chatPartner._id;
-  setReceiverId(calleeId);
-  setCallerName(chatPartner.fullName);
-  setIsIncomingCall(false);
-  setCallStatus("calling");
-  setCallModalOpen(true);
-
-  socket.emit("webrtc:call", { from: userId, to: calleeId, callerName: chatPartner.fullName });
-};
-
-// ---------- Accept / Decline handlers from modal ----------
-const onAcceptCall = () => {
-  if (!receiverId) {
-    console.warn("No receiverId found when accepting call");
-    return;
-  }
-  // notify backend: from=callee (you), to=caller
-  socket.emit("webrtc:accept", { from: userId, to: receiverId });
-
-  setCallStatus("connecting");
-  // Do NOT close modal yet — wait for offer/answer/connected
-};
-
-const onDeclineCall = () => {
-  if (!receiverId) {
+    setLocalStream(null);
+    setRemoteStream(null);
+    setInCall(false);
     setCallModalOpen(false);
     setIsIncomingCall(false);
-    return;
-  }
-  socket.emit("webrtc:reject", { from: userId, to: receiverId });
-  setCallModalOpen(false);
-  setIsIncomingCall(false);
-  setCallStatus("rejected");
-};
+    setCallerName(null);
+    setCallStatus("ended");
+
+    if (notifyPeer && receiverId) {
+      socket.emit("webrtc:hangup", { from: userId, to: receiverId });
+    }
+  };
+
+  // ---------- Socket listeners for call flow ----------
+  useEffect(() => {
+    if (!socket) return;
+
+    // Incoming call notification from server
+    const onIncomingCall = ({
+      from,
+      callerName,
+    }: {
+      from: string;
+      callerName?: string;
+    }) => {
+      console.log("incoming call", from, callerName);
+      setCallerName(callerName || "Unknown");
+      setIsIncomingCall(true);
+      setCallStatus("ringing");
+      setCallModalOpen(true);
+      setReceiverId(from);
+    };
+
+    // Caller side: callee rejected
+    const onCallRejected = ({ from }: { from: string }) => {
+      console.log("call rejected by", from);
+      setCallStatus("rejected");
+      setCallModalOpen(false);
+      handleHangUp(false);
+    };
+
+    // Caller side: callee accepted → caller should start offer
+    const onCallAccepted = ({ from }: { from: string }) => {
+      console.log("call accepted by", from);
+      setCallModalOpen(false);
+      // 'from' is callee id; start offer flow
+      startCallAfterAccepted(from);
+    };
+
+    const onOffer = async ({ from, offer }: { from: string; offer: any }) => {
+      console.log("offer from", from);
+      await handleReceivedOffer(from, offer);
+    };
+
+    const onAnswer = async ({
+      from,
+      answer,
+    }: {
+      from: string;
+      answer: any;
+    }) => {
+      console.log("answer from", from);
+      await handleReceivedAnswer(answer);
+    };
+
+    const onIce = async ({
+      from,
+      candidate,
+    }: {
+      from: string;
+      candidate: any;
+    }) => {
+      await handleAddIceCandidate(candidate);
+    };
+
+    const onHangup = ({ from }: { from: string }) => {
+      console.log("remote hangup by", from);
+      handleHangUp(false);
+    };
+
+    const onCallStatus = ({
+      status,
+      with: peerId,
+    }: {
+      status: string;
+      with: string;
+    }) => {
+      console.log("call-status", status, peerId);
+      setCallStatus(status as any);
+
+      if (status === "rejected") {
+        setCallModalOpen(false);
+        handleHangUp(false);
+      }
+      if (status === "in-call") {
+        setInCall(true);
+        setCallModalOpen(false);
+      }
+      if (status === "ended") {
+        handleHangUp(false);
+      }
+      if (status === "ringing") {
+        setCallModalOpen(true);
+        setIsIncomingCall(true);
+      }
+    };
+
+    // register listeners (names match backend)
+    socket.on("webrtc:incoming-call", onIncomingCall);
+    socket.on("webrtc:call-rejected", onCallRejected);
+    socket.on("webrtc:call-accepted", onCallAccepted);
+    socket.on("webrtc:offer", onOffer);
+    socket.on("webrtc:answer", onAnswer);
+    socket.on("webrtc:ice-candidate", onIce);
+    socket.on("webrtc:hangup", onHangup);
+    socket.on("call-status", onCallStatus);
+
+    return () => {
+      socket.off("webrtc:incoming-call", onIncomingCall);
+      socket.off("webrtc:call-rejected", onCallRejected);
+      socket.off("webrtc:call-accepted", onCallAccepted);
+      socket.off("webrtc:offer", onOffer);
+      socket.off("webrtc:answer", onAnswer);
+      socket.off("webrtc:ice-candidate", onIce);
+      socket.off("webrtc:hangup", onHangup);
+      socket.off("call-status", onCallStatus);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [socket, receiverId]);
+
+  // cleanup on component unmount
+  useEffect(() => {
+    return () => {
+      handleHangUp(false);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // ---------- Outgoing call trigger (opens modal and signals peer) ----------
+  const onClickCallButton = () => {
+    if (!chatPartner) return console.log("chatPartner not found");
+
+    const calleeId = chatPartner._id;
+    setReceiverId(calleeId);
+    setCallerName(chatPartner.fullName);
+    setIsIncomingCall(false);
+    setCallStatus("calling");
+    setCallModalOpen(true);
+
+    socket.emit("webrtc:call", {
+      from: userId,
+      to: calleeId,
+      callerName: chatPartner.fullName,
+    });
+  };
+
+  // ---------- Accept / Decline handlers from modal ----------
+  const onAcceptCall = () => {
+    if (!receiverId) {
+      console.warn("No receiverId found when accepting call");
+      return;
+    }
+    // notify backend: from=callee (you), to=caller
+    socket.emit("webrtc:accept", { from: userId, to: receiverId });
+
+    setCallStatus("connecting");
+    // Do NOT close modal yet — wait for offer/answer/connected
+  };
+
+  const onDeclineCall = () => {
+    if (!receiverId) {
+      setCallModalOpen(false);
+      setIsIncomingCall(false);
+      return;
+    }
+    socket.emit("webrtc:reject", { from: userId, to: receiverId });
+    setCallModalOpen(false);
+    setIsIncomingCall(false);
+    setCallStatus("rejected");
+  };
 
   // Scroll to bottom
   const scrollToBottom = () => {
@@ -413,115 +442,115 @@ const onDeclineCall = () => {
 
   // Load messages when active chat changes
 
-useEffect(() => {
-  if (!activeChatType) return;
+  useEffect(() => {
+    if (!activeChatType) return;
 
-  let convId: string | null = conversationId ?? null;
+    let convId: string | null = conversationId ?? null;
 
-  async function setupChat() {
-    try {
-      setLoadingMessages(true);
+    async function setupChat() {
+      try {
+        setLoadingMessages(true);
 
-      let participants: any[] = [];
+        let participants: any[] = [];
 
-      // If starting a conversation
-      if (activeChatType === "friend" && friendId) {
-        const convRes: StartConversationResponse = await startConversationApi({
-          receiverId: friendId,
-        });
-        convId = convRes.conversation._id;
-        participants = convRes.conversation.participants || [];
-      }
-
-      if (!convId) return;
-
-      setActiveConversationId(convId);
-
-      const msgsRes = await getMessagesApi(convId, 10);
-
-      // ✅ Always get participants from API
-      if (msgsRes.conversation?.participants) {
-        participants = msgsRes.conversation.participants;
-      }
-
-      const mappedMessages = msgsRes.messages.map((m) =>
-        mapMessage(m, userId)
-      );
-      setMessages(mappedMessages);
-
-      if (msgsRes.messages.length > 0) {
-        const firstMsg = msgsRes.messages[0];
-        const partner =
-          firstMsg.sender._id === userId
-            ? firstMsg.receiver
-            : firstMsg.sender;
-
-        setReceiverId(partner._id);
-        setChatPartner({
-          _id: partner._id,
-          fullName: partner.fullName || null,
-          username: partner.username,
-          profileImage: partner.profileImage,
-        });
-      } else {
-        // ✅ fallback: no messages, use participants array
-        if (participants.length > 0) {
-          const partner = participants.find(
-            (p) => p._id.toString() !== userId.toString()
+        // If starting a conversation
+        if (activeChatType === "friend" && friendId) {
+          const convRes: StartConversationResponse = await startConversationApi(
+            {
+              receiverId: friendId,
+            }
           );
-          if (partner) {
-            setReceiverId(partner._id);
-            setChatPartner({
-              _id: partner._id,
-              fullName: partner.fullName,
-              username: partner.username,
-              profileImage: partner.profileImage,
-            });
+          convId = convRes.conversation._id;
+          participants = convRes.conversation.participants || [];
+        }
+
+        if (!convId) return;
+
+        setActiveConversationId(convId);
+
+        const msgsRes = await getMessagesApi(convId, 10);
+
+        // ✅ Always get participants from API
+        if (msgsRes.conversation?.participants) {
+          participants = msgsRes.conversation.participants;
+        }
+
+        const mappedMessages = msgsRes.messages.map((m) =>
+          mapMessage(m, userId)
+        );
+        setMessages(mappedMessages);
+
+        if (msgsRes.messages.length > 0) {
+          const firstMsg = msgsRes.messages[0];
+          const partner =
+            firstMsg.sender._id === userId
+              ? firstMsg.receiver
+              : firstMsg.sender;
+
+          setReceiverId(partner._id);
+          setChatPartner({
+            _id: partner._id,
+            fullName: partner.fullName || null,
+            username: partner.username,
+            profileImage: partner.profileImage,
+          });
+        } else {
+          // ✅ fallback: no messages, use participants array
+          if (participants.length > 0) {
+            const partner = participants.find(
+              (p) => p._id.toString() !== userId.toString()
+            );
+            if (partner) {
+              setReceiverId(partner._id);
+              setChatPartner({
+                _id: partner._id,
+                fullName: partner.fullName,
+                username: partner.username,
+                profileImage: partner.profileImage,
+              });
+            }
           }
         }
+
+        socket.emit("conversation:join", { conversationId: convId });
+
+        const handleReceiveMessage = (msg: any) => {
+          if (!convId) return;
+          if (msg.conversation.toString() === convId.toString()) {
+            setMessages((prev) => {
+              const msgId = msg._id || msg.id;
+              if (prev.some((m) => m.id === msgId)) return prev;
+              return [...prev, mapMessage(msg, userId)];
+            });
+          }
+        };
+
+        socket.on("receiveMessage", handleReceiveMessage);
+
+        socket.on("messageSeen", ({ messageId }) => {
+          setMessages((prev: any) =>
+            prev.map((m: any) =>
+              m._id === messageId ? { ...m, status: "seen" } : m
+            )
+          );
+        });
+
+        return () => {
+          if (convId) {
+            socket.emit("conversation:leave", { conversationId: convId });
+          }
+          socket.off("receiveMessage", handleReceiveMessage);
+          socket.off("messageSeen");
+        };
+      } catch (error) {
+        console.error("❌ Error setting up chat:", error);
+      } finally {
+        setLoadingMessages(false);
       }
-
-      socket.emit("conversation:join", { conversationId: convId });
-
-      const handleReceiveMessage = (msg: any) => {
-        if (!convId) return;
-        if (msg.conversation.toString() === convId.toString()) {
-          setMessages((prev) => {
-            const msgId = msg._id || msg.id;
-            if (prev.some((m) => m.id === msgId)) return prev;
-            return [...prev, mapMessage(msg, userId)];
-          });
-        }
-      };
-
-      socket.on("receiveMessage", handleReceiveMessage);
-
-      socket.on("messageSeen", ({ messageId }) => {
-        setMessages((prev: any) =>
-          prev.map((m: any) =>
-            m._id === messageId ? { ...m, status: "seen" } : m
-          )
-        );
-      });
-
-      return () => {
-        if (convId) {
-          socket.emit("conversation:leave", { conversationId: convId });
-        }
-        socket.off("receiveMessage", handleReceiveMessage);
-        socket.off("messageSeen");
-      };
-    } catch (error) {
-      console.error("❌ Error setting up chat:", error);
-    } finally {
-      setLoadingMessages(false);
     }
-  }
 
-  setupChat();
-}, [activeChatType, conversationId, friendId, userId]);
-
-
+    setupChat();
+  }, [activeChatType, conversationId, friendId, userId]);
 
   useEffect(() => {
     scrollToBottom();
@@ -618,30 +647,102 @@ useEffect(() => {
     }
   };
 
+  // const handleMediaSend = async () => {
+  //   if (!selectedFiles.length || !receiverId) return;
+
+  //   try {
+  //     const file = selectedFiles[0];
+
+  //     // Create a temporary preview message instantly
+  //     const tempMessage = {
+  //       id: "temp-" + Date.now(),
+  //       type: fileType === "photo" ? "image" : "file",
+  //       content: URL.createObjectURL(file),
+  //       fileName: file.name,
+  //       fileSize: file.size,
+  //       isOwn: true,
+  //       timestamp: new Date(),
+  //     };
+
+  //     // Show locally instantly
+  //     setMessages((prev: any) => [...prev, tempMessage]);
+  //     setPreviewOpen(false);
+  //     setSelectedFiles([]);
+  //     scrollToBottom();
+
+  //     // Send to backend
+  //     const formData = new FormData();
+  //     formData.append("receiverId", receiverId);
+  //     formData.append("message", "");
+  //     formData.append("media", file);
+
+  //     const res = await sendMessageApi(formData);
+
+  //     const newMsg = mapMessage(res.chat, userId);
+
+  //     // Replace temp message with real one when backend responds
+  //     setMessages((prev) =>
+  //       prev.map((m) => (m.id === tempMessage.id ? newMsg : m))
+  //     );
+  //   } catch (err) {
+  //     console.error("❌ Error sending media:", err);
+  //     // Remove temp message if failed
+  //     setMessages((prev) => prev.filter((m) => !m.id.startsWith("temp-")));
+  //   }
+  // };
+
+  // API function to send text message
+
   const handleMediaSend = async () => {
     if (!selectedFiles.length || !receiverId) return;
 
     try {
       const file = selectedFiles[0];
-      const formData = new FormData();
 
-      formData.append("receiverId", receiverId);
-      formData.append("message", ""); // empty if media only
-      formData.append("media", file); // matches multer backend
+      // Create a temporary preview message instantly
+      const tempMessage = {
+        id: "temp-" + Date.now(),
+        type: fileType === "photo" ? "image" : "file",
+        content: URL.createObjectURL(file), // ✅ blob preview
+        fileName: file.name,
+        fileSize: file.size,
+        isOwn: true,
+        timestamp: new Date(),
+        status: "sending", // optional flag
+      };
 
-      const res = await sendMessageApi(formData); // ✅ still uses sendMessageApi
-
-      const newMsg = mapMessage(res.chat, userId);
-      setMessages((prev) => [...prev, newMsg]); // display new message
+      // Show locally instantly
+      // setMessages((prev: any) => [...prev, tempMessage]);
       setPreviewOpen(false);
       setSelectedFiles([]);
       scrollToBottom();
+
+      // Send to backend
+      const formData = new FormData();
+      formData.append("receiverId", receiverId);
+      formData.append("message", "");
+      formData.append("media", file);
+      formData.append("fileType", fileType || "doc");
+
+      const res = await sendMessageApi(formData);
+
+      const newMsg = mapMessage(res.chat, userId);
+
+      // ✅ Merge backend data into tempMessage, but keep the local preview URL
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === tempMessage.id
+            ? { ...newMsg, content: m.content, status: newMsg.status } // keep blob
+            : m
+        )
+      );
     } catch (err) {
       console.error("❌ Error sending media:", err);
+      // Remove temp message if failed
+      setMessages((prev) => prev.filter((m) => !m.id.startsWith("temp-")));
     }
   };
 
-  // API function to send text message
   const handleSend = async () => {
     if (!message.trim() || !receiverId) return;
 
@@ -663,7 +764,7 @@ useEffect(() => {
       console.error("❌ Error sending message:", err);
     }
   };
- function DateBadge({ date }: { date: Date }) {
+  function DateBadge({ date }: { date: Date }) {
     const today = new Date();
     const yesterday = new Date();
     yesterday.setDate(yesterday.getDate() - 1);
@@ -691,31 +792,30 @@ useEffect(() => {
     );
   }
   // 🎨 render bubbles
-let lastMessageDate: string | null = null;
+  let lastMessageDate: string | null = null;
 
-const renderMessages = () =>
-  loadingMessages ? (
-    <ChatSkeleton />
-  ) : (
-    messages.map((bubbleMsg, index) => {
-      const messageDate = new Date(bubbleMsg.timestamp).toDateString();
-      const showDateBadge = messageDate !== lastMessageDate;
-      lastMessageDate = messageDate;
+  const renderMessages = () =>
+    loadingMessages ? (
+      <ChatSkeleton />
+    ) : (
+      messages.map((bubbleMsg, index) => {
+        const messageDate = new Date(bubbleMsg.timestamp).toDateString();
+        const showDateBadge = messageDate !== lastMessageDate;
+        lastMessageDate = messageDate;
 
-      return (
-        <motion.div
-          key={bubbleMsg.id}
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: index * 0.05 }}
-        >
-          {showDateBadge && <DateBadge date={bubbleMsg.timestamp} />}
-          <ChatBubble message={bubbleMsg} />
-        </motion.div>
-      );
-    })
-  );
-
+        return (
+          <motion.div
+            key={bubbleMsg.id}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: index * 0.05 }}
+          >
+            {showDateBadge && <DateBadge date={bubbleMsg.timestamp} />}
+            <ChatBubble message={bubbleMsg} />
+          </motion.div>
+        );
+      })
+    );
 
   // Don’t render anything if no chat is selected
   if (!activeChatType) {
@@ -865,37 +965,38 @@ const renderMessages = () =>
             : theme === "Hearts"
             ? "bg-pink-500"
             : "bg-gray-100 dark:bg-gray-800"
-        } relative`}         style={
-                  theme === "Superman"
-                    ? {
-                        backgroundImage: `url(${Superman.src})`,
-                        backgroundRepeat: "no-repeat",
-                        backgroundPosition: "center",
-                        backgroundSize: "250px",
-                      }
-                    : theme === "Hearts"
-                    ? {
-                        backgroundImage: `url(${Heart.src})`,
-                        backgroundRepeat: "no-repeat",
-                        backgroundPosition: "center",
-                        backgroundSize: "250px",
-                      }
-                    : theme === "Cat"
-                    ? {
-                        backgroundImage: `url(${Cat.src})`,
-                        backgroundSize: "cover",
-                        backgroundRepeat: "no-repeat",
-                        backgroundPosition: "center",
-                      }
-                    : theme === "Couple"
-                    ? {
-                        backgroundImage: `url(${Couple.src})`,
-                        backgroundSize: "cover",
-                        backgroundRepeat: "no-repeat",
-                        backgroundPosition: "center",
-                      }
-                    : {}
-                }
+        } relative`}
+        style={
+          theme === "Superman"
+            ? {
+                backgroundImage: `url(${Superman.src})`,
+                backgroundRepeat: "no-repeat",
+                backgroundPosition: "center",
+                backgroundSize: "250px",
+              }
+            : theme === "Hearts"
+            ? {
+                backgroundImage: `url(${Heart.src})`,
+                backgroundRepeat: "no-repeat",
+                backgroundPosition: "center",
+                backgroundSize: "250px",
+              }
+            : theme === "Cat"
+            ? {
+                backgroundImage: `url(${Cat.src})`,
+                backgroundSize: "cover",
+                backgroundRepeat: "no-repeat",
+                backgroundPosition: "center",
+              }
+            : theme === "Couple"
+            ? {
+                backgroundImage: `url(${Couple.src})`,
+                backgroundSize: "cover",
+                backgroundRepeat: "no-repeat",
+                backgroundPosition: "center",
+              }
+            : {}
+        }
       >
         {isLoadingOlder && (
           <div className="text-center text-sm text-gray-500 dark:text-gray-400 mb-2">
@@ -935,19 +1036,9 @@ const renderMessages = () =>
                     onClick: () => handlePickFile("photo"),
                   },
                   {
-                    icon: <Video className="w-6 h-6 text-red-500" />,
-                    label: "Videos",
-                    onClick: () => handlePickFile("video"),
-                  },
-                  {
                     icon: <Music className="w-6 h-6 text-purple-500" />,
                     label: "Audio",
                     onClick: () => handlePickFile("audio"),
-                  },
-                  {
-                    icon: <Contact className="w-6 h-6 text-yellow-500" />,
-                    label: "Friends",
-                    onClick: () => alert("Contact upload coming soon..."),
                   },
                 ].map((item, idx) => (
                   <button
@@ -971,7 +1062,7 @@ const renderMessages = () =>
                     : fileType === "video"
                     ? ".mp4,.mkv,.mov,.avi"
                     : fileType === "doc"
-                    ? ".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt"
+                    ? ".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt,.png,.jpg,.jpeg,.webp,.svg,.ico,.mp4,.mkv,.mov,.avi,.mp3,.wav,.ogg,.aac"
                     : fileType === "audio"
                     ? ".mp3,.wav,.ogg,.aac"
                     : "*/*"

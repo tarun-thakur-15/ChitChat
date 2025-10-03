@@ -172,7 +172,7 @@ export default function ChatListOuter({
             </div>
 
             {/* New Chat Button */}
-            {activeTab === "chats" && (
+            {/* {activeTab === "chats" && (
               <div className="p-4 border-t border-gray-200 dark:border-gray-700">
                 <motion.button
                   whileHover={{ scale: 1.02 }}
@@ -183,7 +183,7 @@ export default function ChatListOuter({
                   <span>Start New Chat</span>
                 </motion.button>
               </div>
-            )}
+            )} */}
           </>
         )}
       </div>

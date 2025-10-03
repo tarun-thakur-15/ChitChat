@@ -9,6 +9,9 @@ import { ChatMessage } from "@/app/services/schema";
 import ImagePreviewDrawer from "./ImagePreviewDrawer";
 import { useState } from "react";
 
+//images
+import FallbackImage from "../app/images/fallback-chat-image.png";
+
 export interface Message {
   fileSize: string;
   id: string;
@@ -52,7 +55,7 @@ export function ChatBubble({ message }: ChatBubbleProps) {
             className="relative w-48 h-48 rounded-xl overflow-hidden cursor-pointer hover:opacity-90 transition-opacity"
           >
             <Image
-              src={message.content}
+              src={message.content || FallbackImage}
               alt={message.fileName || "Shared image"}
               height={192}
               width={192}
@@ -91,13 +94,15 @@ export function ChatBubble({ message }: ChatBubbleProps) {
               <p className="font-medium text-gray-900 dark:text-white text-sm">
                 {message.fileName || "Document"}
               </p>
-              <p className="text-xs text-gray-600 dark:text-gray-400">0kb</p>
+              <p className="text-xs text-gray-600 dark:text-gray-400">
+                {message.fileSize ? `${(Number(message.fileSize) / 1024).toFixed(1)} KB` : ""}
+              </p>
             </div>
             {/* <button className="p-2 hover:bg-gray-200 dark:hover:bg-gray-500 rounded-lg transition-colors">
               <Download className="w-4 h-4 text-gray-600 dark:text-gray-400" />
             </button> */}
             <a
-              href={message.content}
+              ref={message.content}
               download
               className="p-2 hover:bg-gray-200 dark:hover:bg-gray-500 rounded-lg transition-colors"
             >
@@ -193,7 +198,7 @@ export function ChatBubble({ message }: ChatBubbleProps) {
       <ImagePreviewDrawer
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
-        imageUrl={message.content}
+        imageUrl={message.content || ""}
         fileName={message.fileName}
       />
     </>
