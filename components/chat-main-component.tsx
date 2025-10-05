@@ -52,7 +52,7 @@ import Picker from "@emoji-mart/react";
 import { mapMessage } from "@/app/utils/mapMessage";
 import { SendMessageRequest } from "@/app/services/schema";
 import Link from "next/link";
-import { checkUserOnline, registerUser, socket } from "@/socket";
+import { checkUserOnline, socket } from "@/socket";
 import ChatSkeleton from "./ChatSkeleton";
 import CallModal from "./CallModal";
 

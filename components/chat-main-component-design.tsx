@@ -356,7 +356,7 @@ export default function ChatMainComponent() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: index * 0.1 }}
           >
-            <ChatBubble message={msg} />
+            {/* <ChatBubble message={msg} /> */}
           </motion.div>
         ))}
         <div ref={messagesEndRef} />
