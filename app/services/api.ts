@@ -30,6 +30,7 @@ import {
   SendMessageRequest,
   GetLastFriendRequestsResponse,
   SendFriendRequestResponse,
+  UnsendMessageResponse
 } from "./schema";
 const base_url = "http://localhost:10000/api";
 // Create axios instance (optional, you can add baseURL & headers)
@@ -270,7 +271,7 @@ export async function getConversationsApi(): Promise<GetConversationsResponse> {
       credentials: "include", // browser sends cookies automatically
       cache: "no-store", // no stale data
     });
-
+  
     if (!res.ok) {
       const errorData = await res.json().catch(() => ({}));
       throw new Error(errorData.message || "❌ Failed to fetch conversations");
@@ -315,7 +316,7 @@ export async function startConversationApi(
   data: StartConversationRequest
 ): Promise<StartConversationResponse> {
   try {
-    const res = await fetch(`${base_url}/conversations`, {
+    const res = await fetch(`${base_url}/startConversation`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       credentials: "include", // ✅ Send cookies automatically
@@ -361,3 +362,15 @@ export const sendFriendRequestApi = async (
   });
   return res.data;
 };
+
+export async function unsendMessageApi(messageId: string): Promise<UnsendMessageResponse> {
+  try {
+    const response = await axios.post(`${base_url}/message/unsend`, { messageId }, {
+      withCredentials: true // if auth uses cookies
+    });
+    return response.data;
+  } catch (error: any) {
+    console.error("❌ Unsend message error:", error.response?.data || error.message);
+    throw error;
+  }
+}

@@ -6,6 +6,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import {
   LogOut,
   Settings,
@@ -42,9 +43,12 @@ interface HeaderProps {
   user?: MeResponse["user"];
 }
 
-const handleLogout = async () => {
+const handleLogout = async (id: string | undefined) => {
   try {
     const data = await logoutApi();
+    socket.emit("user:logout", id);
+    socket.disconnect();
+
     toast.success(data.message || "Logged out successfully");
     window.location.reload();
   } catch (err: any) {
@@ -80,10 +84,10 @@ export default function Header({ isLoggedInParent, user }: HeaderProps) {
     },
     { id: "/settings", label: "Settings", icon: <Settings /> },
   ];
-  
+
   socket.emit("register-user", user?._id);
   console.log("logged in user details:- ", user?._id);
-     
+
   return (
     <header className="w-full border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
       {isLoggedin && user ? (
@@ -110,13 +114,21 @@ export default function Header({ isLoggedInParent, user }: HeaderProps) {
             <DropdownMenuTrigger asChild>
               <button className="hidden lg:flex items-center gap-2 focus:outline-none">
                 <div className="bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center border-4 border-white dark:border-gray-800 shadow-lg overflow-hidden">
-                  <Image
-                    height={40}
-                    width={40}
-                    src={user.profileImage || DefaultProfileImage}
-                    alt="Profile"
-                    className="w-9 h-9 rounded-full border border-gray-300 dark:border-gray-600 object-cover"
-                  />
+                  <Avatar className="w-10 h-10">
+                    <AvatarImage
+                      src={user.profileImage}
+                      height={40}
+                      width={40}
+                      alt={user.fullName}
+                      className="h-full w-full rounded-full border border-gray-300 dark:border-gray-600 object-cover"
+                    />
+                    <AvatarFallback>
+                      {user.fullName
+                        .split(" ")
+                        .map((n) => n[0])
+                        .join("")}
+                    </AvatarFallback>
+                  </Avatar>
                 </div>
                 <span className="hidden sm:block text-gray-900 dark:text-white font-medium">
                   {user.fullName}
@@ -140,7 +152,7 @@ export default function Header({ isLoggedInParent, user }: HeaderProps) {
                 <span>Edit Profile</span>
               </DropdownMenuItem>
               <DropdownMenuItem
-                onClick={handleLogout}
+                onClick={()=> handleLogout(user?._id)}
                 className="flex items-center gap-2 text-red-600 cursor-pointer"
               >
                 <LogOut className="w-4 h-4" />
@@ -149,14 +161,26 @@ export default function Header({ isLoggedInParent, user }: HeaderProps) {
             </DropdownMenuContent>
             {/* ---------hamburger div for mobile screens---------- */}
 
-            <div className="hamburger lg:hidden z-50">
-              <a
-                className={`${activeMenu ? "active-menu" : ""} main-nav-toggle`}
-                href="#"
-                onClick={handleClick}
+            <div className="flex lg:hidden gap-4">
+              <Link
+                onClick={() => startProgress()}
+                href={"/search"}
+                className="mt-[15px] rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
               >
-                <i>Menu</i>
-              </a>
+                <Search className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+              </Link>
+
+              <div className="hamburger lg:hidden z-50 flex justify-center items-center">
+                <Link
+                  className={`${
+                    activeMenu ? "active-menu" : ""
+                  } main-nav-toggle`}
+                  href="#"
+                  onClick={handleClick}
+                >
+                  <i>Menu</i>
+                </Link>
+              </div>
             </div>
 
             {/* -------sliding div onclicking hamburger icon--------- */}
@@ -198,7 +222,7 @@ export default function Header({ isLoggedInParent, user }: HeaderProps) {
                         ))}
 
                         <button
-                          onClick={handleLogout}
+                          onClick={()=> handleLogout(user?._id)}
                           className="self-stretch border-b-[#edeef0] justify-between items-center inline-flex text-center text-[#1e1f23] text-sm font-medium  tracking-wide dark:text-white"
                         >
                           Logout
@@ -225,7 +249,11 @@ export default function Header({ isLoggedInParent, user }: HeaderProps) {
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <Link href="/friend-requests" onClick={()=> startProgress()} className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                    <Link
+                      href="/friend-requests"
+                      onClick={() => startProgress()}
+                      className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                    >
                       <Users className="w-5 h-5 text-gray-600 dark:text-gray-400" />
                     </Link>
                   </TooltipTrigger>

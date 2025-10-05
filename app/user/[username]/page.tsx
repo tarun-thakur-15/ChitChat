@@ -33,6 +33,7 @@ export default async function ProfilePage({ params }: PageProps) {
           _id={profile._id}
           loggedinUserId={user._id}
           hasSendFriendRequest={profile.hasSendFriendRequest}
+          hasReceivedFriendRequest={profile.hasReceivedFriendRequest}
         />
         
         

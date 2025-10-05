@@ -4,11 +4,15 @@ import { motion } from "framer-motion";
 import { Check, X } from "lucide-react";
 import { toast } from "sonner";
 import Link from "next/link";
-import Image from "next/image";
-import DefaultProfileImage from "../app/images/business-man.png";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { useRouter } from "next/navigation";
+import { startProgress } from "@/app/utils/progress";
 
 //api
-import { acceptFriendRequestApi, deleteFriendRequestApi } from "@/app/services/api";
+import {
+  acceptFriendRequestApi,
+  deleteFriendRequestApi,
+} from "@/app/services/api";
 import { useEffect, useState } from "react";
 
 interface FriendRequest {
@@ -25,6 +29,7 @@ interface FriendRequestsProps {
 }
 
 export function FriendRequests({ requests, loading }: FriendRequestsProps) {
+  const router = useRouter();
   const [localRequests, setLocalRequests] = useState<FriendRequest[]>(requests);
   useEffect(() => {
     setLocalRequests(requests); // update if parent props change
@@ -51,23 +56,26 @@ export function FriendRequests({ requests, loading }: FriendRequestsProps) {
     }
   };
 
-const handleDecline = async (request: FriendRequest) => {
-  try {
-    const res = await deleteFriendRequestApi(request._id);
-    if (res.success) {
-      toast.success(res.message || `Declined request from ${request.username}`, {
-        icon: "✅",
-        duration: 4000,
-      });
-      setLocalRequests(prev => prev.filter(r => r._id !== request._id));
-    } else {
-      toast.error(res.message || "Failed to decline request", { icon: "❌" });
+  const handleDecline = async (request: FriendRequest) => {
+    try {
+      const res = await deleteFriendRequestApi(request._id);
+      if (res.success) {
+        toast.success(
+          res.message || `Declined request from ${request.username}`,
+          {
+            icon: "✅",
+            duration: 4000,
+          }
+        );
+        setLocalRequests((prev) => prev.filter((r) => r._id !== request._id));
+      } else {
+        toast.error(res.message || "Failed to decline request", { icon: "❌" });
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error("Error declining request", { icon: "❌" });
     }
-  } catch (err) {
-    console.error(err);
-    toast.error("Error declining request", { icon: "❌" });
-  }
-};
+  };
 
   if (loading) {
     return (
@@ -98,17 +106,28 @@ const handleDecline = async (request: FriendRequest) => {
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ delay: index * 0.1 }}
-          className="bg-white dark:bg-gray-700 p-4 rounded-xl border border-gray-200 dark:border-gray-600 shadow-sm"
+          onClick={() => {
+            router.push(`/user/${request.username}`), startProgress();
+          }}
+          className="bg-white dark:bg-gray-700 p-4 rounded-xl border border-gray-200 dark:border-gray-600 shadow-sm cursor-pointer"
         >
           <div className="flex items-center space-x-3">
             <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-blue-600 rounded-full flex items-center justify-center overflow-hidden">
-              <Image
-                src={request.profileImage || DefaultProfileImage}
-                alt={request.fullName}
-                className="w-full h-full object-cover"
-                height={48}
-                width={48}
-              />
+              <Avatar className="w-12 h-12">
+                <AvatarImage
+                  src={request.profileImage}
+                  height={48}
+                  width={48}
+                  alt={request.profileImage}
+                  className="w-full h-full object-cover"
+                />
+                <AvatarFallback>
+                  {request.fullName
+                    .split(" ")
+                    .map((n) => n[0])
+                    .join("")}
+                </AvatarFallback>
+              </Avatar>
             </div>
 
             <div className="flex-1">
@@ -125,7 +144,11 @@ const handleDecline = async (request: FriendRequest) => {
             <motion.button
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
-              onClick={() => handleAccept(request)}
+              onClick={(e) => {
+                e.preventDefault(),
+                e.stopPropagation(),
+                handleAccept(request);
+              }}
               className="flex-1 bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded-lg font-medium transition-colors flex items-center justify-center space-x-2"
             >
               <Check className="w-4 h-4" />
@@ -135,11 +158,13 @@ const handleDecline = async (request: FriendRequest) => {
             <motion.button
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
-              onClick={() => handleDecline(request)}
+              onClick={(e) => {
+                e.preventDefault(), e.stopPropagation(), handleDecline(request) ;
+              }}
               className="flex-1 bg-red-600 hover:bg-red-700 text-white py-2 px-4 rounded-lg font-medium transition-colors flex items-center justify-center space-x-2"
             >
               <X className="w-4 h-4" />
-              <span>Decline</span>
+              <span>Reject</span>
             </motion.button>
           </div>
         </motion.div>

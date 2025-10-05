@@ -4,7 +4,9 @@ import { motion } from "framer-motion";
 import { formatDistanceToNow } from "date-fns";
 import { Conversation, UserMini } from "@/app/services/schema";
 import { useChatStore } from "@/app/stores/chatStore";
-import Image from "next/image";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { checkUserOnline, socket } from "@/socket";
+import { useEffect, useState } from "react";
 
 interface ChatListProps {
   searchQuery: string;
@@ -39,6 +41,34 @@ export function ChatList({
   currentUserId,
 }: ChatListProps) {
   const setActiveChat = useChatStore((state) => state.setActiveChat);
+
+  const participantId = conversations?.[0]?.participants?.find(
+    (p) => p._id !== currentUserId
+  )?._id;
+  console.log("participantId:- ", participantId);
+  const [isOnline, setIsOnline] = useState(false);
+
+  useEffect(() => {
+    if (!participantId) return;
+
+    console.log("checking online status of user:", participantId);
+
+    checkUserOnline(participantId).then((status) => {
+      setIsOnline(status);
+      console.log(`${participantId} is ${status ? "online" : "offline"}`);
+    });
+
+    socket.on("user:status", ({ userId: changedUserId, online }) => {
+      if (changedUserId === participantId) {
+        setIsOnline(online);
+        console.log("Realtime update:", changedUserId, online);
+      }
+    });
+
+    return () => {
+      socket.off("user:status");
+    };
+  }, [participantId]);
 
   const chats: ChatItem[] = [
     ...conversations.map((conv) => {
@@ -152,30 +182,23 @@ export function ChatList({
         >
           {/* Avatar */}
           <div className="relative">
-            {chat.user.avatar ? (
-              <>
-                <Image
-                  src={chat.user.avatar}
-                  alt="sd"
-                  height={48}
-                  width={48}
-                  className="w-12 h-12 object-cover rounded-full"
-                />
-              </>
-            ) : (
-              <>
-                <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
-                  <span className="text-white font-medium">
-                    {typeof chat.user.avatar === "string" &&
-                    chat.user.avatar.length <= 3
-                      ? chat.user.avatar
-                      : chat.user.avatar?.slice(0, 2).toUpperCase()}
-                  </span>
-                </div>
-              </>
-            )}
+            <Avatar className="w-12 h-12">
+              <AvatarImage
+                src={chat.user.avatar}
+                height={48}
+                width={48}
+                alt={chat.user.avatar}
+                className="w-full h-full object-cover rounded-full"
+              />
+              <AvatarFallback>
+                {chat.user.name
+                  .split(" ")
+                  .map((n) => n[0])
+                  .join("")}
+              </AvatarFallback>
+            </Avatar>
 
-            {chat.user.online && (
+            {isOnline && (
               <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 bg-green-500 rounded-full border-2 border-white dark:border-gray-800"></div>
             )}
           </div>
@@ -206,8 +229,6 @@ export function ChatList({
               )}
             </div>
           </div>
-
-         
         </motion.div>
       ))}
 

@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import Image from "next/image";
 import Cookies from "js-cookie";
 import { useChatStore } from "@/app/stores/chatStore";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import {
   getMessagesApi,
   startConversationApi,
@@ -46,10 +47,12 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import data from "@emoji-mart/data";
+import Picker from "@emoji-mart/react";
 import { mapMessage } from "@/app/utils/mapMessage";
 import { SendMessageRequest } from "@/app/services/schema";
 import Link from "next/link";
-import { socket } from "@/socket";
+import { checkUserOnline, registerUser, socket } from "@/socket";
 import ChatSkeleton from "./ChatSkeleton";
 import CallModal from "./CallModal";
 
@@ -115,6 +118,14 @@ export default function ChatMainComponent({ userId }: Props) {
     profileImage?: string;
   } | null>(null);
 
+  //emojis
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const emojiPickerRef = useRef<HTMLDivElement>(null);
+
+  const handleEmojiSelect = (emoji: any) => {
+    setMessage((prev) => prev + emoji.native); // append emoji
+    setShowEmojiPicker(false); // close picker after selection
+  };
   // ---------- WEBRTC helpers ----------
   // helper to ensure we only create one PC and attach handlers
   const createPeerConnection = (peerUserId: string) => {
@@ -388,7 +399,7 @@ export default function ChatMainComponent({ userId }: Props) {
 
   // ---------- Outgoing call trigger (opens modal and signals peer) ----------
   const onClickCallButton = () => {
-    if (!chatPartner) return console.log("chatPartner not found");
+    if (!chatPartner) return;
 
     const calleeId = chatPartner._id;
     setReceiverId(calleeId);
@@ -562,7 +573,7 @@ export default function ChatMainComponent({ userId }: Props) {
       !activeConversationId ||
       messages.length === 0
     ) {
-      return console.log("inside if statement");
+      return;
     }
 
     setIsLoadingOlder(true);
@@ -575,7 +586,6 @@ export default function ChatMainComponent({ userId }: Props) {
     const oldestMsg = messages[0];
     const before = oldestMsg.timestamp.toISOString();
 
-    console.log("reached just above the api call");
     const olderRes = await getMessagesApi(activeConversationId, 10, before);
 
     // ✅ Update hasMoreOlderMessages here
@@ -599,7 +609,6 @@ export default function ChatMainComponent({ userId }: Props) {
 
     const handleScroll = () => {
       if (el.scrollTop === 0) {
-        console.log("Scrolled to top → loading older messages...");
         handleLoadOlder();
       }
     };
@@ -646,52 +655,6 @@ export default function ChatMainComponent({ userId }: Props) {
       setPreviewOpen(true);
     }
   };
-
-  // const handleMediaSend = async () => {
-  //   if (!selectedFiles.length || !receiverId) return;
-
-  //   try {
-  //     const file = selectedFiles[0];
-
-  //     // Create a temporary preview message instantly
-  //     const tempMessage = {
-  //       id: "temp-" + Date.now(),
-  //       type: fileType === "photo" ? "image" : "file",
-  //       content: URL.createObjectURL(file),
-  //       fileName: file.name,
-  //       fileSize: file.size,
-  //       isOwn: true,
-  //       timestamp: new Date(),
-  //     };
-
-  //     // Show locally instantly
-  //     setMessages((prev: any) => [...prev, tempMessage]);
-  //     setPreviewOpen(false);
-  //     setSelectedFiles([]);
-  //     scrollToBottom();
-
-  //     // Send to backend
-  //     const formData = new FormData();
-  //     formData.append("receiverId", receiverId);
-  //     formData.append("message", "");
-  //     formData.append("media", file);
-
-  //     const res = await sendMessageApi(formData);
-
-  //     const newMsg = mapMessage(res.chat, userId);
-
-  //     // Replace temp message with real one when backend responds
-  //     setMessages((prev) =>
-  //       prev.map((m) => (m.id === tempMessage.id ? newMsg : m))
-  //     );
-  //   } catch (err) {
-  //     console.error("❌ Error sending media:", err);
-  //     // Remove temp message if failed
-  //     setMessages((prev) => prev.filter((m) => !m.id.startsWith("temp-")));
-  //   }
-  // };
-
-  // API function to send text message
 
   const handleMediaSend = async () => {
     if (!selectedFiles.length || !receiverId) return;
@@ -791,8 +754,37 @@ export default function ChatMainComponent({ userId }: Props) {
       </div>
     );
   }
+
+  const [isOnline, setIsOnline] = useState(false);
+
+  useEffect(() => {
+    if (!receiverId) return;
+
+    console.log("checking online status of user:", receiverId);
+
+    checkUserOnline(receiverId).then((status) => {
+      setIsOnline(status);
+      console.log(`${receiverId} is ${status ? "online" : "offline"}`);
+    });
+
+    socket.on("user:status", ({ userId: changedUserId, online }) => {
+      if (changedUserId === receiverId) {
+        setIsOnline(online);
+        console.log("Realtime update:", changedUserId, online);
+      }
+    });
+
+    return () => {
+      socket.off("user:status");
+    };
+  }, [receiverId]);
+
   // 🎨 render bubbles
   let lastMessageDate: string | null = null;
+
+  const handleRemoveMessage = (messageId: string) => {
+    setMessages((prev) => prev.filter((msg) => msg.id !== messageId));
+  };
 
   const renderMessages = () =>
     loadingMessages ? (
@@ -811,7 +803,11 @@ export default function ChatMainComponent({ userId }: Props) {
             transition={{ delay: index * 0.05 }}
           >
             {showDateBadge && <DateBadge date={bubbleMsg.timestamp} />}
-            <ChatBubble message={bubbleMsg} />
+            <ChatBubble
+              message={bubbleMsg}
+              key={bubbleMsg.id}
+              onUnsend={() => handleRemoveMessage(bubbleMsg.id)}
+            />
           </motion.div>
         );
       })
@@ -831,11 +827,10 @@ export default function ChatMainComponent({ userId }: Props) {
             <MessageSquare className="w-16 h-16 text-blue-600 dark:text-blue-400" />
           </div>
           <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
-            Welcome to ChatWave
+            Welcome to ChatShat
           </h2>
           <p className="text-gray-600 dark:text-gray-400 max-w-md mx-auto">
-            Select a chat from the sidebar to start messaging, or create a new
-            conversation to connect with friends.
+            Select a chat from the sidebar to start messaging.
           </p>
         </motion.div>
       </div>
@@ -873,21 +868,27 @@ export default function ChatMainComponent({ userId }: Props) {
               className="flex items-center space-x-3"
             >
               <div className="relative">
-                {chatPartner?.profileImage ? (
-                  <Image
-                    src={chatPartner.profileImage}
-                    alt={chatPartner.username}
+                <Avatar className="w-12 h-12">
+                  <AvatarImage
+                    src={chatPartner?.profileImage || ""}
                     height={40}
                     width={40}
+                    alt={chatPartner?.username || "User"}
                     className="object-cover h-10 w-10 rounded-full"
                   />
-                ) : (
-                  <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
-                    <span className="text-white font-medium">AJ</span>
-                  </div>
-                )}
+                  <AvatarFallback>
+                    {chatPartner
+                      ? chatPartner.fullName
+                          .split(" ")
+                          .map((n) => n[0])
+                          .join("")
+                      : "?"}
+                  </AvatarFallback>
+                </Avatar>
                 {/* only when user is online */}
-                <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 rounded-full border-2 border-white dark:border-gray-800"></div>
+                {/* {isOnline && (
+                  <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 rounded-full border-2 border-white dark:border-gray-800"></div>
+                )} */}
               </div>
 
               <div>
@@ -1086,9 +1087,25 @@ export default function ChatMainComponent({ userId }: Props) {
               className="w-full px-4 py-3 pr-12 bg-gray-100 dark:bg-gray-700 border-0 rounded-2xl focus:ring-2 focus:ring-blue-500 resize-none text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 transition-all"
               rows={1}
             />
-            <button className="absolute right-3 top-1/2 -translate-y-1/2 p-1 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors">
+            <button
+              onClick={() => setShowEmojiPicker((prev) => !prev)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 p-1 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors"
+            >
               <Smile className="w-5 h-5 text-gray-600 dark:text-gray-400" />
             </button>
+            {/* Emoji Picker */}
+            {showEmojiPicker && (
+              <div
+                ref={emojiPickerRef}
+                className="absolute bottom-14 right-3 z-50"
+              >
+                <Picker
+                  data={data}
+                  onEmojiSelect={handleEmojiSelect}
+                  theme="light"
+                />
+              </div>
+            )}
           </div>
 
           <motion.button

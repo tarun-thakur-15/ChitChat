@@ -57,6 +57,7 @@ export interface VerifyOtpResponse {
     email: string;
   };
   accessToken?: string;
+  resetToken?: string;
 }
 
 // ===== RESET PASSWORD =====
@@ -186,6 +187,7 @@ export interface UserProfile {
   totalFriends: number;
   isFriend: boolean;
   hasSendFriendRequest: boolean;
+  hasReceivedFriendRequest: boolean;
 }
 
 export interface UserFriend {
@@ -367,6 +369,11 @@ export interface GetLastFriendRequestsResponse {
 }
 
 export interface SendFriendRequestResponse {
+  success: boolean;
+  message: string;
+}
+
+export interface UnsendMessageResponse {
   success: boolean;
   message: string;
 }

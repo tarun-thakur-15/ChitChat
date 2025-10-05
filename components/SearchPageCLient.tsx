@@ -48,6 +48,7 @@ export default function SearchPageClientSide({ userId }: Props) {
     const fetchConversations = async () => {
       try {
         const res = await getConversationsApi();
+        console.log("getConversationsApi response:- " ,res);
         setData(res);
 
         // ✅ Connect socket if not already connected
@@ -94,8 +95,8 @@ export default function SearchPageClientSide({ userId }: Props) {
   if (isLargeScreen === null) return null;
   return (
     <>
-      {isLargeScreen ? (
-        <ResizablePanelGroup direction="horizontal" className="h-screen">
+      {/* {isLargeScreen ? ( */}
+        <ResizablePanelGroup direction="horizontal" className="h-screen !flex-col lg:!flex-row">
           <ResizablePanel defaultSize={30} minSize={15} maxSize={40}>
             <ChatListOuter
               conversations={data.conversations}
@@ -123,24 +124,23 @@ export default function SearchPageClientSide({ userId }: Props) {
                     <MessageSquare className="w-16 h-16 text-blue-600 dark:text-blue-400" />
                   </div>
                   <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
-                    Welcome to ChatWave
+                    Welcome to ChatShat
                   </h2>
                   <p className="text-gray-600 dark:text-gray-400 max-w-md mx-auto">
-                    Select a chat from the sidebar to start messaging, or create
-                    a new conversation to connect with friends.
+                    Select a chat from the sidebar to start messaging.
                   </p>
                 </motion.div>
               </div>
             )}
           </ResizablePanel>
         </ResizablePanelGroup>
-      ) : (
+      {/* ) : (
         <ChatListOuter
           conversations={data.conversations}
           totalFriendRequests={data.totalFriendRequests}
           friendsWithoutConversation={data.friendsWithoutConversation}
         />
-      )}
+      )} */}
     </>
   );
 }

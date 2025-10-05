@@ -11,7 +11,7 @@ import {
   uploadCoverImage,
   uploadProfileImage,
   changeFullNameApi,
-  changeUserNameApi
+  changeUserNameApi,
 } from "@/app/services/api";
 import { StaticImport } from "next/dist/shared/lib/get-img-props";
 import { MyProfileResponse } from "@/app/services/schema";
@@ -215,7 +215,9 @@ export default function MyProfile({
         setIsFullNameEditing(false);
         toast.success(res.message || res.data.message || "Name changed");
       } else {
-        toast.error(res?.data?.message || res?.message || "Failed to update name");
+        toast.error(
+          res?.data?.message || res?.message || "Failed to update name"
+        );
       }
     } catch (err: any) {
       console.error("❌ Error changing full name:", err);
@@ -339,14 +341,25 @@ export default function MyProfile({
             {/* Avatar */}
             <div className="relative">
               <div className="w-32 h-32 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center border-4 border-white dark:border-gray-800 shadow-lg overflow-hidden">
-                <Image
-                  height={40}
-                  width={40}
-                  src={newProfileImage || profileImage || DefaultProfileImage}
-                  alt="Profile"
-                  className="w-full h-full object-cover rounded-full"
-                />
+                {newProfileImage || profileImage ? (
+                  <Image
+                    height={128}
+                    width={128}
+                    src={(newProfileImage || profileImage) as string}
+                    alt="Profile"
+                    className="w-full h-full object-cover rounded-full"
+                  />
+                ) : (
+                  <span className="text-3xl font-semibold text-white">
+                    {fullName
+                      .split(" ")
+                      .map((n) => n[0])
+                      .join("")
+                      .toUpperCase()}
+                  </span>
+                )}
               </div>
+
               <Plus
                 onClick={handleIconClick}
                 className="cursor-pointer absolute bottom-2 right-2 w-8 h-8 bg-green-500 rounded-full border-4 border-white dark:border-gray-800"
@@ -363,7 +376,7 @@ export default function MyProfile({
             </div>
 
             {/* User Info */}
-            <div className="flex-1 mt-4 md:mt-[55px]">
+            <div className="flex-1 mt-4 md:mt-[63px]">
               {/* Full Name */}
               <div className="flex items-center gap-2">
                 {isFullNameEditing ? (

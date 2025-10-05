@@ -13,6 +13,7 @@ export interface User {
   totalFriends?: number;
   isFriend?: boolean;
   hasSendFriendRequest?: boolean;
+  hasReceivedFriendRequest?: boolean;
 }
 
 interface UserContextProps {
