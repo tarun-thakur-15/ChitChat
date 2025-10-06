@@ -1,5 +1,6 @@
 // lib/getCurrentUser.ts
 import { cookies } from "next/headers";
+const backend_url = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:10000/api";
 
 export async function getCurrentUser() {
   const token = cookies().get("accessToken")?.value;
@@ -7,7 +8,7 @@ export async function getCurrentUser() {
   if (!token) return null;
 
   try {
-    const res = await fetch(`http://localhost:10000/api/getMe`, {
+    const res = await fetch(`${backend_url}/getMe`, {
       headers: {
         Cookie: `accessToken=${token}`,
       },

@@ -32,7 +32,7 @@ import {
   SendFriendRequestResponse,
   UnsendMessageResponse
 } from "./schema";
-const base_url = "http://localhost:10000/api";
+const base_url = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:10000/api";
 // Create axios instance (optional, you can add baseURL & headers)
 const api = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:10000/api",
