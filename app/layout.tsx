@@ -6,8 +6,45 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "sonner";
 import Header from "@/components/header";
 import ProgressBar from "@/components/ProgressBar";
-import { getCurrentUser } from "@/lib/getCurrentUser"; 
+import { getCurrentUser } from "@/lib/getCurrentUser";
+
 const inter = Inter({ subsets: ["latin"] });
+
+// ✅ SEO Metadata
+export const metadata: Metadata = {
+  title: "ChatShat – Baatein Unlimited | Free Real-Time Chat App",
+  description:
+    "Join ChatShat, the free real-time chat app for unlimited conversations. Enjoy private messaging, file sharing, and a smooth, secure chatting experience. Sign up today!",
+  alternates: {
+    canonical: "https://chat-shat.vercel.app/",
+  },
+  icons: {
+    icon: "/favicon.png", // update if you have a different favicon
+  },
+  openGraph: {
+    title: "ChatShat – Baatein Unlimited | Free Real-Time Chat App",
+    description:
+      "ChatShat lets you connect instantly with friends — chat in real time, share files, and enjoy a smooth, private chatting experience.",
+    url: "https://chat-shat.vercel.app/",
+    siteName: "ChatShat",
+    images: [
+      {
+        url: "https://chat-shat.vercel.app/images/ChatShat.png", // ✅ replace with your actual preview image
+        width: 1200,
+        height: 630,
+        alt: "ChatShat App Preview",
+      },
+    ],
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "ChatShat – Baatein Unlimited | Free Real-Time Chat App",
+    description:
+      "Join ChatShat for unlimited real-time conversations. Enjoy private messaging, media sharing, and a seamless chat experience.",
+    images: ["https://chat-shat.vercel.app/images/ChatShat.png"],
+  },
+};
 
 export default async function RootLayout({
   children,
@@ -27,7 +64,7 @@ export default async function RootLayout({
           disableTransitionOnChange={false}
         >
           <ProgressBar />
-          <UserProvider user={user}> {/* ✅ wrap children */}
+          <UserProvider user={user}>
             <Header isLoggedInParent={isLoggedInParent} user={user} />
             {children}
           </UserProvider>

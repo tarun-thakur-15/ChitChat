@@ -34,7 +34,6 @@ import { MeResponse } from "@/app/services/schema";
 import { useRouter } from "next/navigation";
 import NProgress from "nprogress";
 import ChatShat from "../app/images/ChatShat.png";
-import DefaultProfileImage from "../app/images/business-man.png";
 import { startProgress } from "@/app/utils/progress";
 import { UserProvider } from "@/app/context/UserContext";
 import { socket } from "@/socket";
