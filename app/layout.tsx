@@ -19,7 +19,7 @@ export const metadata: Metadata = {
     canonical: "https://chat-shat.vercel.app/",
   },
   icons: {
-    icon: "/favicon.png", // update if you have a different favicon
+    icon: "https://chat-shat.vercel.app/images/ChatShat.png", // update if you have a different favicon
   },
   openGraph: {
     title: "ChatShat – Baatein Unlimited | Free Real-Time Chat App",
