@@ -24,7 +24,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "ChatShat – Baatein Unlimited | Free Real-Time Chat App",
     description:
-      "ChatShat lets you connect instantly with friends — chat in real time, share files, and enjoy a smooth, private chatting experience.",
+      "Free real-time chat app for endless conversations. Chat, share, and stay connected with ChatShat.",
     url: "https://chat-shat.vercel.app/",
     siteName: "ChatShat",
     images: [
