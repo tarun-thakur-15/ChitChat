@@ -37,6 +37,7 @@ export default function AuthComponent({ isLoggedInParent, user }: HeaderProps) {
   const [newPassword, setNewPassword] = useState<string>("");
   const [confirmPassword, setConfirmPassword] = useState<string>("");
   const [isLoading, setIsLoading] = useState(false);
+  const [isLoginFormLoading, setIsLoginFormLoading] = useState(false);
   const [resetToken, setResetToken] = useState("");
   const [formData, setFormData] = useState({
     username: "",
@@ -51,6 +52,7 @@ export default function AuthComponent({ isLoggedInParent, user }: HeaderProps) {
     e.preventDefault();
 
     try {
+      setIsLoginFormLoading(true);
       if (isLogin) {
         // ================= LOGIN FLOW =================
         if (loginFormLevel === 1) {
@@ -102,6 +104,8 @@ export default function AuthComponent({ isLoggedInParent, user }: HeaderProps) {
       }
     } catch (err: any) {
       toast.error(err.response?.data.message);
+    } finally {
+      setIsLoginFormLoading(true);
     }
   };
   const handleResetPassword = async (e: React.FormEvent) => {
@@ -261,7 +265,7 @@ export default function AuthComponent({ isLoggedInParent, user }: HeaderProps) {
                         className="mt-6 w-full bg-blue-600 hover:bg-blue-700 text-white py-3 px-4 rounded-xl font-medium transition-colors focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800"
                       >
                         <Lock className="w-5 h-5 inline mr-2" />
-                        Sign In
+                         {isLoginFormLoading ? "Signing In..." : "Sign In"}
                       </motion.button>
                     </div>
                   </div>
@@ -303,7 +307,7 @@ export default function AuthComponent({ isLoggedInParent, user }: HeaderProps) {
                       className="mt-6 w-full bg-blue-600 hover:bg-blue-700 text-white py-3 px-4 rounded-xl font-medium transition-colors focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800"
                     >
                       <Lock className="w-5 h-5 inline mr-2" />
-                      Send OTP
+                       {isLoginFormLoading ? "Sending OTP..." : "Send OTP"}
                     </motion.button>
                   </div>
                 </form>
@@ -334,7 +338,7 @@ export default function AuthComponent({ isLoggedInParent, user }: HeaderProps) {
                     className="mt-6 w-full bg-blue-600 hover:bg-blue-700 text-white py-3 px-4 rounded-xl font-medium transition-colors focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800"
                   >
                     <Lock className="w-5 h-5 inline mr-2" />
-                    Verify OTP
+                      {isLoginFormLoading ? "Verifying..." : "Verify OTP"}
                   </motion.button>
                 </form>
               ) : (

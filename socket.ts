@@ -2,7 +2,7 @@
 import { io } from "socket.io-client";
 
 // ✅ Use backend base URL (your API or socket server)
-const base_url = process.env.NEXT_PUBLIC_API_BASE_URL || "https://chat-shat-backend.onrender.com/api";
+const base_url = "https://chat-shat-backend.onrender.com/api";
 
 // ✅ Create socket instance (with manual connection control)
 export const socket = io(base_url, {

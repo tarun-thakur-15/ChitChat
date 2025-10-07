@@ -32,11 +32,11 @@ import {
   SendFriendRequestResponse,
   UnsendMessageResponse
 } from "./schema";
-const base_url = process.env.NEXT_PUBLIC_API_BASE_URL || "https://chat-shat-backend.onrender.com/api";
-console.log("backend base url:- ", process.env.NEXT_PUBLIC_API_BASE_URL);
+const base_url = "https://chat-shat-backend.onrender.com/api";
+
 // Create axios instance (optional, you can add baseURL & headers)
 const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_BASE_URL || "https://chat-shat-backend.onrender.com/api",
+  baseURL: base_url,
   withCredentials: true, // to allow cookies (like accessToken)
 });
 

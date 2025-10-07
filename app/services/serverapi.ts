@@ -6,7 +6,7 @@ import {
   UserProfile,
   
 } from "./schema";
-const backend_url = process.env.NEXT_PUBLIC_API_BASE_URL || "https://chat-shat-backend.onrender.com/api";
+const backend_url = "https://chat-shat-backend.onrender.com/api";
 import { notFound } from "next/navigation";
 
 export const fetchMyProfileSSR = async (): Promise<MyProfileResponse> => {

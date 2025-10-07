@@ -1,6 +1,6 @@
 // lib/getCurrentUser.ts
 import { cookies } from "next/headers";
-const backend_url = process.env.NEXT_PUBLIC_API_BASE_URL || "https://chat-shat-backend.onrender.com/api";
+const backend_url = "https://chat-shat-backend.onrender.com/api";
 
 export async function getCurrentUser() {
   const token = cookies().get("accessToken")?.value;
