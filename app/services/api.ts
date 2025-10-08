@@ -37,7 +37,7 @@ const base_url = "https://chat-shat-backend.onrender.com/api";
 // Create axios instance (optional, you can add baseURL & headers)
 const api = axios.create({
   baseURL: base_url,
-  withCredentials: true, // to allow cookies (like accessToken)
+  withCredentials: true, 
 });
 
 // ===== SIGNUP =====
