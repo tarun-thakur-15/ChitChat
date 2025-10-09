@@ -7,6 +7,7 @@ import { Toaster } from "sonner";
 import Header from "@/components/header";
 import ProgressBar from "@/components/ProgressBar";
 import { getCurrentUser } from "@/lib/getCurrentUser";
+import Footer from "@/components/footer";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -67,6 +68,7 @@ export default async function RootLayout({
           <UserProvider user={user}>
             <Header isLoggedInParent={isLoggedInParent} user={user} />
             {children}
+            <Footer/>
           </UserProvider>
           <Toaster
             richColors
