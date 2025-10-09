@@ -63,7 +63,7 @@ export default function AuthComponent({ isLoggedInParent, user }: HeaderProps) {
 
           toast.success(data.message || "Login Successfull🎉");
 
-          // window.location.reload();
+          window.location.reload();
         } else if (loginFormLevel === 2) {
           const data = await forgotPasswordApi({
             identifier: formData.username,
