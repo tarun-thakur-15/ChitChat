@@ -33,9 +33,8 @@ import Image from "next/image";
 import { MeResponse } from "@/app/services/schema";
 import { useRouter } from "next/navigation";
 import NProgress from "nprogress";
-import ChatShat from "../app/images/ChatShat.png";
+import ChatShat from "../app/images/ChatShat.webp";
 import { startProgress } from "@/app/utils/progress";
-import { UserProvider } from "@/app/context/UserContext";
 import { socket } from "@/socket";
 interface HeaderProps {
   isLoggedInParent: boolean;
@@ -91,20 +90,12 @@ export default function Header({ isLoggedInParent, user }: HeaderProps) {
     <header className="w-full border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
       {isLoggedin && user ? (
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          {/* Left: Logo + Project Name */}
-          {/* <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center">
-              <span className="text-white font-bold">C</span>
-            </div>
-            <span className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white">
-              ChatWave
-            </span>
-          </div> */}
+          
           <Link href={"/dashboard"}>
             <Image
               src={ChatShat}
               alt="ChatShat"
-              className="h-[50px] w-[50px]"
+              className="h-[60px] w-[60px]"
             />
           </Link>
 

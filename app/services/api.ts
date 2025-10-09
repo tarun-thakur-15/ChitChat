@@ -32,7 +32,8 @@ import {
   SendFriendRequestResponse,
   UnsendMessageResponse
 } from "./schema";
-const base_url = "https://chat-shat-backend.onrender.com/api";
+// const base_url = "https://chat-shat-backend.onrender.com/api";
+const base_url = "/api";
 
 // Create axios instance (optional, you can add baseURL & headers)
 const api = axios.create({
@@ -93,7 +94,7 @@ export const logoutApi = async (): Promise<LogoutResponse> => {
 // ===== UODATE BIO =====
 export const updateBioApi = async (bio: string): Promise<UpdateBioResponse> => {
   const res = await axios.post(
-    `${base_url}/api/bio`,
+    `${base_url}/bio`,
     { bio },
     { withCredentials: true } // 🔑 needed since auth token is in cookies
   );

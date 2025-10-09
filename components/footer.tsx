@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import ChatShat from "../app/images/ChatShat.png";
+import ChatShat from "../app/images/ChatShat.webp";
 
 export default function Footer() {
   return (

@@ -61,6 +61,7 @@ import Superman from "../app/images/superman_logo.webp";
 import Heart from "../app/images/blueheart.webp";
 import Cat from "../app/images/cat.webp";
 import Couple from "../app/images/couple.webp";
+import ChatShat from "../app/images/ChatShat.webp";
 
 type FileType = "photo" | "video" | "doc" | "audio" | null;
 
@@ -823,8 +824,14 @@ export default function ChatMainComponent({ userId }: Props) {
           transition={{ delay: 0.2 }}
           className="text-center"
         >
-          <div className="w-32 h-32 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center mx-auto mb-6">
-            <MessageSquare className="w-16 h-16 text-blue-600 dark:text-blue-400" />
+          <div className="w-32 h-32 rounded-full flex items-center justify-center mx-auto mb-6 overflow-hidden">
+            <Image
+              src={ChatShat}
+              alt="ChatShat"
+              height={128}
+              width={128}
+              className="h-full w-full object-cover"
+            />
           </div>
           <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
             Welcome to ChatShat
