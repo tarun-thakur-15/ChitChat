@@ -68,7 +68,8 @@ export default async function RootLayout({
           <UserProvider user={user}>
             <Header isLoggedInParent={isLoggedInParent} user={user} />
             {children}
-            <Footer/>
+            {!isLoggedInParent && <Footer/>}
+            
           </UserProvider>
           <Toaster
             richColors

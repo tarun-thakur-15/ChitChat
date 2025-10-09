@@ -70,6 +70,7 @@ interface Props {
 }
 
 export default function ChatMainComponent({ userId }: Props) {
+  const [sendMessageLoading, setSendMessageLoading] = useState(false);
   // --- Audio Call States ---
   const [inCall, setInCall] = useState(false);
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
@@ -659,7 +660,7 @@ export default function ChatMainComponent({ userId }: Props) {
 
   const handleMediaSend = async () => {
     if (!selectedFiles.length || !receiverId) return;
-
+    setSendMessageLoading(true);
     try {
       const file = selectedFiles[0];
 
@@ -676,7 +677,7 @@ export default function ChatMainComponent({ userId }: Props) {
       };
 
       // Show locally instantly
-      // setMessages((prev: any) => [...prev, tempMessage]);
+      setMessages((prev: any) => [...prev, tempMessage]);
       setPreviewOpen(false);
       setSelectedFiles([]);
       scrollToBottom();
@@ -704,12 +705,14 @@ export default function ChatMainComponent({ userId }: Props) {
       console.error("❌ Error sending media:", err);
       // Remove temp message if failed
       setMessages((prev) => prev.filter((m) => !m.id.startsWith("temp-")));
+    } finally {
+      setSendMessageLoading(false);
     }
   };
 
   const handleSend = async () => {
     if (!message.trim() || !receiverId) return;
-
+    setSendMessageLoading(true);
     try {
       const payload: SendMessageRequest = {
         receiverId,
@@ -721,11 +724,13 @@ export default function ChatMainComponent({ userId }: Props) {
 
       // ✅ Map to ChatMessage before storing
       const newMsg = mapMessage(res.chat, userId);
-      // setMessages((prev) => [...prev, newMsg]);
+      setMessages((prev) => [...prev, newMsg]);
       setMessage("");
       scrollToBottom();
     } catch (err) {
       console.error("❌ Error sending message:", err);
+    } finally {
+      setSendMessageLoading(false);
     }
   };
   function DateBadge({ date }: { date: Date }) {
@@ -1094,12 +1099,37 @@ export default function ChatMainComponent({ userId }: Props) {
               className="w-full px-4 py-3 pr-12 bg-gray-100 dark:bg-gray-700 border-0 rounded-2xl focus:ring-2 focus:ring-blue-500 resize-none text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 transition-all"
               rows={1}
             />
-            <button
-              onClick={() => setShowEmojiPicker((prev) => !prev)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 p-1 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors"
-            >
-              <Smile className="w-5 h-5 text-gray-600 dark:text-gray-400" />
-            </button>
+            {sendMessageLoading ? (
+              <div className="absolute right-3 top-1/2 -translate-y-1/2 p-1">
+                <svg
+                  className="animate-spin h-5 w-5 text-blue-500"
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                >
+                  <circle
+                    className="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                  ></circle>
+                  <path
+                    className="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+                  ></path>
+                </svg>
+              </div>
+            ) : (
+              <button
+                onClick={() => setShowEmojiPicker((prev) => !prev)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 p-1 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors"
+              >
+                <Smile className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+              </button>
+            )}
             {/* Emoji Picker */}
             {showEmojiPicker && (
               <div

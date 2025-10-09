@@ -268,7 +268,7 @@ export async function changeUserNameApi(
 
 export async function getConversationsApi(): Promise<GetConversationsResponse> {
   try {
-    const res = await fetch(`${base_url}/getConversations`, {
+    const res = await fetch(`https://chat-shat-backend.onrender.com/api/getConversations`, {
       method: "GET",
       credentials: "include", // browser sends cookies automatically
       cache: "no-store", // no stale data
@@ -293,7 +293,9 @@ export async function getMessagesApi(
   before?: string
 ): Promise<GetMessagesResponse> {
   try {
-    const url = new URL(`${base_url}/messages/${conversationId}`);
+    console.log( "conversation id is:- " ,conversationId);
+    const url = new URL(`https://chat-shat-backend.onrender.com/api/messages/${conversationId}`);
+    console.log( "url is:- " ,url);
     url.searchParams.append("limit", String(limit));
     if (before) url.searchParams.append("before", before);
 
@@ -318,7 +320,7 @@ export async function startConversationApi(
   data: StartConversationRequest
 ): Promise<StartConversationResponse> {
   try {
-    const res = await fetch(`${base_url}/startConversation`, {
+    const res = await fetch(`https://chat-shat-backend.onrender.com/api/startConversation`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       credentials: "include", // ✅ Send cookies automatically
@@ -341,7 +343,7 @@ export const sendMessageApi = async (
 ): Promise<{ success: boolean; chat: ChatMessageResponse }> => {
   const isFormData = payload instanceof FormData;
 
-  const res = await axios.post(`${base_url}/sendMessage`, payload, {
+  const res = await axios.post(`https://chat-shat-backend.onrender.com/api/sendMessage`, payload, {
     withCredentials: true,
     headers: isFormData ? { "Content-Type": "multipart/form-data" } : undefined,
   });
@@ -350,7 +352,7 @@ export const sendMessageApi = async (
 };
 
 export const getLastFriendRequestsApi = async (): Promise<GetLastFriendRequestsResponse> => {
-  const res = await axios.get(`${base_url}/getLastThreeFriendRequests`, {
+  const res = await axios.get(`https://chat-shat-backend.onrender.com/api/getLastThreeFriendRequests`, {
     withCredentials: true,
   });
   return res.data;
@@ -359,7 +361,7 @@ export const getLastFriendRequestsApi = async (): Promise<GetLastFriendRequestsR
 export const sendFriendRequestApi = async (
   userId: string
 ): Promise<SendFriendRequestResponse> => {
-  const res = await axios.post(`${base_url}/sendFriendRequest/${userId}`, null, {
+  const res = await axios.post(`https://chat-shat-backend.onrender.com/api/sendFriendRequest/${userId}`, null, {
     withCredentials: true,
   });
   return res.data;
@@ -367,7 +369,7 @@ export const sendFriendRequestApi = async (
 
 export async function unsendMessageApi(messageId: string): Promise<UnsendMessageResponse> {
   try {
-    const response = await axios.post(`${base_url}/message/unsend`, { messageId }, {
+    const response = await axios.post(`https://chat-shat-backend.onrender.com/api/message/unsend`, { messageId }, {
       withCredentials: true // if auth uses cookies
     });
     return response.data;
