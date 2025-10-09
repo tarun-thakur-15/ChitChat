@@ -3,19 +3,19 @@ import { NextRequest, NextResponse } from "next/server";
 
 const BACKEND_URL = "https://chat-shat-backend.onrender.com";
 
+// 🧹 Remove Domain=... from backend cookies
 function cleanCookieDomain(setCookie: string) {
   return setCookie
     .split(";")
-    .map((part) => part.trim())
+    .map((p) => p.trim())
     .filter((p) => !p.toLowerCase().startsWith("domain="))
     .join("; ");
 }
 
-// ✅ Handles all HTTP methods (GET, POST, PUT, DELETE)
-export async function middlewareProxy(req: NextRequest) {
+async function handleProxy(req: NextRequest) {
   const { pathname, search } = new URL(req.url);
-  const path = pathname.replace(/^\/api/, ""); // remove "/api" prefix
-  const targetUrl = `${BACKEND_URL}/api${path}${search || ""}`;
+  const targetPath = pathname.replace(/^\/api/, ""); // remove "/api" prefix
+  const targetUrl = `${BACKEND_URL}/api${targetPath}${search || ""}`;
 
   const init: RequestInit = {
     method: req.method,
@@ -30,18 +30,16 @@ export async function middlewareProxy(req: NextRequest) {
     headers: backendRes.headers,
   });
 
-  // Copy cookies from backend (removing Domain)
   const setCookie = backendRes.headers.get("set-cookie");
-  if (setCookie) {
-    res.headers.set("set-cookie", cleanCookieDomain(setCookie));
-  }
+  if (setCookie) res.headers.set("set-cookie", cleanCookieDomain(setCookie));
 
   return res;
 }
 
-// Alias all HTTP verbs to the same handler
-export const GET = middlewareProxy;
-export const POST = middlewareProxy;
-export const PUT = middlewareProxy;
-export const DELETE = middlewareProxy;
-export const PATCH = middlewareProxy;
+// ✅ Only export the allowed HTTP methods (no custom names)
+export const GET = handleProxy;
+export const POST = handleProxy;
+export const PUT = handleProxy;
+export const DELETE = handleProxy;
+export const PATCH = handleProxy;
+export const OPTIONS = handleProxy;
