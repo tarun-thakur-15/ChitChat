@@ -30,7 +30,7 @@ import {
   SendMessageRequest,
   GetLastFriendRequestsResponse,
   SendFriendRequestResponse,
-  UnsendMessageResponse
+  UnsendMessageResponse,
 } from "./schema";
 // const base_url = "https://chat-shat-backend.onrender.com/api";
 const base_url = "/api";
@@ -38,7 +38,7 @@ const base_url = "/api";
 // Create axios instance (optional, you can add baseURL & headers)
 const api = axios.create({
   baseURL: "/api",
-  withCredentials: true, 
+  withCredentials: true,
 });
 
 // ===== SIGNUP =====
@@ -273,7 +273,7 @@ export async function getConversationsApi(): Promise<GetConversationsResponse> {
       credentials: "include", // browser sends cookies automatically
       cache: "no-store", // no stale data
     });
-  
+
     if (!res.ok) {
       const errorData = await res.json().catch(() => ({}));
       throw new Error(errorData.message || "❌ Failed to fetch conversations");
@@ -293,16 +293,18 @@ export async function getMessagesApi(
   before?: string
 ): Promise<GetMessagesResponse> {
   try {
-    
-    const url = new URL(`${base_url}/messages/${conversationId}`);
-    
-    url.searchParams.append("limit", String(limit));
-    if (before) url.searchParams.append("before", before);
+    console.log("getMessagesApi called");
+    console.log("conversationId is:", conversationId);
 
-    const res = await fetch(url.toString(), {
+    let url = `${base_url}/messages/${conversationId}?limit=${limit}`;
+    if (before) url += `&before=${before}`;
+
+    console.log("🟢 Final URL:", url);
+
+    const res = await fetch(url, {
       method: "GET",
-      credentials: "include",
-      cache: "no-store",
+      credentials: "include", // ✅ Send cookies with request
+      cache: "no-store", // ✅ Avoid cached data
     });
 
     if (!res.ok) {
@@ -351,30 +353,44 @@ export const sendMessageApi = async (
   return res.data;
 };
 
-export const getLastFriendRequestsApi = async (): Promise<GetLastFriendRequestsResponse> => {
-  const res = await axios.get(`${base_url}/getLastThreeFriendRequests`, {
-    withCredentials: true,
-  });
-  return res.data;
-};
+export const getLastFriendRequestsApi =
+  async (): Promise<GetLastFriendRequestsResponse> => {
+    const res = await axios.get(`${base_url}/getLastThreeFriendRequests`, {
+      withCredentials: true,
+    });
+    return res.data;
+  };
 
 export const sendFriendRequestApi = async (
   userId: string
 ): Promise<SendFriendRequestResponse> => {
-  const res = await axios.post(`${base_url}/sendFriendRequest/${userId}`, null, {
-    withCredentials: true,
-  });
+  const res = await axios.post(
+    `${base_url}/sendFriendRequest/${userId}`,
+    null,
+    {
+      withCredentials: true,
+    }
+  );
   return res.data;
 };
 
-export async function unsendMessageApi(messageId: string): Promise<UnsendMessageResponse> {
+export async function unsendMessageApi(
+  messageId: string
+): Promise<UnsendMessageResponse> {
   try {
-    const response = await axios.post(`${base_url}/message/unsend`, { messageId }, {
-      withCredentials: true // if auth uses cookies
-    });
+    const response = await axios.post(
+      `${base_url}/message/unsend`,
+      { messageId },
+      {
+        withCredentials: true, // if auth uses cookies
+      }
+    );
     return response.data;
   } catch (error: any) {
-    console.error("❌ Unsend message error:", error.response?.data || error.message);
+    console.error(
+      "❌ Unsend message error:",
+      error.response?.data || error.message
+    );
     throw error;
   }
 }
