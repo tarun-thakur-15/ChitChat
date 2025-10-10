@@ -35,6 +35,7 @@ function useMediaQuery(query: string) {
   return matches;
 }
 export default function SearchPageClientSide({ userId }: Props) {
+  const [isChatListLoading, setIsChatListLoading] = useState(false);
   const [data, setData] = useState<GetConversationsResponse>({
     success: false,
     conversations: [],
@@ -47,6 +48,7 @@ export default function SearchPageClientSide({ userId }: Props) {
   useEffect(() => {
     const fetchConversations = async () => {
       try {
+        setIsChatListLoading(true);
         const res = await getConversationsApi();
         console.log("getConversationsApi response:- " ,res);
         setData(res);
@@ -78,6 +80,8 @@ export default function SearchPageClientSide({ userId }: Props) {
         });
       } catch (err) {
         console.error("❌ Error loading conversations:", err);
+      } finally {
+        setIsChatListLoading(false);
       }
     };
 
@@ -102,6 +106,7 @@ export default function SearchPageClientSide({ userId }: Props) {
               conversations={data.conversations}
               friendsWithoutConversation={data.friendsWithoutConversation}
               totalFriendRequests={data.totalFriendRequests}
+              isChatListLoading={isChatListLoading}
             />
           </ResizablePanel>
           <ResizableHandle withHandle />

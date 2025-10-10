@@ -21,12 +21,14 @@ interface ChatListOuterProps {
   conversations: Conversation[];
   friendsWithoutConversation: UserMini[];
   totalFriendRequests: number;
+  isChatListLoading: boolean;
 }
 
 export default function ChatListOuter({
   conversations,
   friendsWithoutConversation,
-  totalFriendRequests
+  totalFriendRequests,
+  isChatListLoading,
 }: ChatListOuterProps) {
    const { user } = useUser();
   const [friendRequests, setFriendRequests] = useState<any[]>([]);
@@ -157,6 +159,7 @@ export default function ChatListOuter({
                     searchQuery={searchQuery}
                     conversations={conversations}
                     friendsWithoutConversation={friendsWithoutConversation}
+                    isChatListLoading={isChatListLoading}
                   />
                 )}
                 {activeTab === "requests" && (

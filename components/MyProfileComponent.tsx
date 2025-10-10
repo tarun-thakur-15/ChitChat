@@ -30,6 +30,7 @@ export default function MyProfile({
   const [requestSent, setRequestSent] = useState(false);
 
   //   ----------profile picture---------
+  const [isProfileImageUploading, setIsProfileImageUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [profilePic, setProfilePic] = useState<string | null>(null);
   const [newProfileImage, setProfileImage] = useState<string | null>(null); // actual uploaded image
@@ -48,6 +49,7 @@ export default function MyProfile({
         setProfilePic(base64);
 
         try {
+          setIsProfileImageUploading(true);
           const res = await uploadProfileImage(base64);
           if (res.success) {
             setProfileImage(res.profileImage);
@@ -59,6 +61,8 @@ export default function MyProfile({
         } catch (err) {
           console.error("❌ Error uploading profile image:", err);
           toast.error("Something went wrong while uploading");
+        } finally {
+          setIsProfileImageUploading(true);
         }
       };
       reader.readAsDataURL(file);
@@ -66,6 +70,7 @@ export default function MyProfile({
   };
 
   //   ---------------Cover Picture---------------------
+  const [isCoverImageUploading, setIsCoverImageUploading] = useState(false);
   const fileInputRefCoverPicture = useRef<HTMLInputElement | null>(null);
   const [coverPhoto, setCoverPhoto] = useState<string | StaticImport>(
     coverImage || DefaultCoverImage
@@ -149,6 +154,7 @@ export default function MyProfile({
     setShowCropper(false);
 
     try {
+      setIsCoverImageUploading(true);
       //reducing the file size via browser-image-compression
       const compressedFile = await imageCompression(
         base64ToFile(base64, "cover.jpg"),
@@ -184,6 +190,8 @@ export default function MyProfile({
       }
 
       toast.error(backendMessage);
+    } finally {
+      setIsCoverImageUploading(false);
     }
   };
 
@@ -279,13 +287,22 @@ export default function MyProfile({
           {/* Cover Photo Preview */}
 
           <div className="relative rounded-xl border border-gray-300 dark:border-gray-700 shadow-md">
-            <Image
-              width={861}
-              height={216}
-              src={coverPhoto}
-              alt="Cover"
-              className="w-full h-full object-cover rounded-xl"
-            />
+            {isCoverImageUploading ? (
+              <div className="h-[216px] w-[861px]">
+
+              <div className="w-full h-full flex items-center justify-center bg-black/30">
+                <div className="w-8 h-8 border-4 border-white/50 border-t-white rounded-full animate-spin"></div>
+              </div>
+              </div>
+            ) : (
+              <Image
+                width={861}
+                height={216}
+                src={coverPhoto}
+                alt="Cover"
+                className="w-full h-full object-cover rounded-xl"
+              />
+            )}
 
             <Plus
               onClick={handleIconClickCoverPicture}
@@ -342,13 +359,19 @@ export default function MyProfile({
             <div className="relative">
               <div className="w-32 h-32 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center border-4 border-white dark:border-gray-800 shadow-lg overflow-hidden">
                 {newProfileImage || profileImage ? (
-                  <Image
-                    height={128}
-                    width={128}
-                    src={(newProfileImage || profileImage) as string}
-                    alt="Profile"
-                    className="w-full h-full object-cover rounded-full"
-                  />
+                  isProfileImageUploading ? (
+                    <div className="w-full h-full flex items-center justify-center bg-black/30">
+                      <div className="w-8 h-8 border-4 border-white/50 border-t-white rounded-full animate-spin"></div>
+                    </div>
+                  ) : (
+                    <Image
+                      height={128}
+                      width={128}
+                      src={(newProfileImage || profileImage) as string}
+                      alt="Profile"
+                      className="w-full h-full object-cover rounded-full"
+                    />
+                  )
                 ) : (
                   <span className="text-3xl font-semibold text-white">
                     {fullName
