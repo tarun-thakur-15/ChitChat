@@ -280,53 +280,45 @@ export function ChatBubble({ message, onUnsend }: ChatBubbleProps) {
 
             {/* 3-dot icon for desktop hover */}
             {message.isOwn && (
-
-            
-            <div
-              className={`absolute top-[6px] -left-6
+              <div
+                className={`absolute top-[6px] -left-6
                opacity-0 group-hover:opacity-100 transition-opacity`}
-            >
-              <DropdownMenu open={showMenu} onOpenChange={setShowMenu}>
-                <DropdownMenuTrigger asChild>
-                  <button
-                    className="p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-600"
-                    onClick={() => setShowMenu((p) => !p)}
-                  >
-                    <MoreVertical className="w-4 h-4 text-gray-600 dark:text-gray-300" />
-                  </button>
-                </DropdownMenuTrigger>
+              >
+                <DropdownMenu open={showMenu} onOpenChange={setShowMenu}>
+                  <DropdownMenuTrigger asChild>
+                    <button
+                      className="p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-600"
+                      onClick={() => setShowMenu((p) => !p)}
+                    >
+                      <MoreVertical className="w-4 h-4 text-gray-600 dark:text-gray-300" />
+                    </button>
+                  </DropdownMenuTrigger>
 
-                <DropdownMenuContent
-                  align="end"
-                  className="w-40"
-                  onClick={closeMenu}
-                >
-                  {message.isOwn ? (
-                    <>
-                      <DropdownMenuItem
-                        onClick={() => handleUnsendMessage(message.id)}
-                        className="flex items-center gap-2 cursor-pointer"
-                      >
-                        <Undo className="w-4 h-4" /> Unsend
-                      </DropdownMenuItem>
+                  <DropdownMenuContent
+                    align="end"
+                    className="w-40"
+                    onClick={closeMenu}
+                  >
+                    {message.isOwn ? (
+                      <>
+                        <DropdownMenuItem
+                          onClick={() => handleUnsendMessage(message.id)}
+                          className="flex items-center gap-2 cursor-pointer"
+                        >
+                          <Undo className="w-4 h-4" /> Unsend
+                        </DropdownMenuItem>
+                      </>
+                    ) : (
                       <DropdownMenuItem
                         // onClick={() => handleDeleteMessage(message._id)}
                         className="flex items-center gap-2 cursor-pointer"
                       >
                         <Trash2 className="w-4 h-4" /> Delete for me
                       </DropdownMenuItem>
-                    </>
-                  ) : (
-                    <DropdownMenuItem
-                      // onClick={() => handleDeleteMessage(message._id)}
-                      className="flex items-center gap-2 cursor-pointer"
-                    >
-                      <Trash2 className="w-4 h-4" /> Delete for me
-                    </DropdownMenuItem>
-                  )}
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
             )}
           </motion.div>
 
