@@ -120,7 +120,7 @@ export default function ChatMainComponent() {
   const handleSend = () => {
     if (message.trim()) {
       // Handle sending message
-      console.log("Sending message:", message);
+     
       setMessage("");
     }
   };
@@ -159,10 +159,10 @@ export default function ChatMainComponent() {
     e: React.ChangeEvent<HTMLInputElement>,
     type: string
   ) => {
-    console.log("handleFileSelect called");
+   
     const files = e.target.files;
     if (files && files.length > 0) {
-      console.log(`${type} selected:`, files);
+    
       // Here you can send files to backend or chat
       setMediaBoxOpen(false);
     }
@@ -220,7 +220,7 @@ export default function ChatMainComponent() {
 
   // Send files (simulate)
   const handleMediaSend = () => {
-    console.log("Sending:", selectedFiles);
+
     setPreviewOpen(false);
     setSelectedFiles([]);
   };

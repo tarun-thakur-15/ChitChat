@@ -293,9 +293,9 @@ export async function getMessagesApi(
   before?: string
 ): Promise<GetMessagesResponse> {
   try {
-    console.log( "conversation id is:- " ,conversationId);
+    
     const url = new URL(`${base_url}/messages/${conversationId}`);
-    console.log( "url is:- " ,url);
+    
     url.searchParams.append("limit", String(limit));
     if (before) url.searchParams.append("before", before);
 

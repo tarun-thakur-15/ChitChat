@@ -50,7 +50,7 @@ export default function SearchPageClientSide({ userId }: Props) {
       try {
         setIsChatListLoading(true);
         const res = await getConversationsApi();
-        console.log("getConversationsApi response:- " ,res);
+     
         setData(res);
 
         // ✅ Connect socket if not already connected
@@ -66,7 +66,7 @@ export default function SearchPageClientSide({ userId }: Props) {
 
         // ✅ Listen for real-time conversation updates
         socket.on("conversation:update", (data) => {
-          console.log("💬 Conversation updated via socket:", data);
+          
 
           if (data?.conversations && data?.conversations?.length > 0) {
             setData((prev: any) => {

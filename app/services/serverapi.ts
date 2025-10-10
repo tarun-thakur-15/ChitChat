@@ -39,7 +39,7 @@ export async function getSuggestedUsersApi(): Promise<GetSuggestedUsersResponse>
     cache: "no-store",
   });
 
-  console.log("status:", res.status, res.statusText);
+  
 
   if (!res.ok) {
     const errorText = await res.text();

@@ -84,7 +84,7 @@ export default function Header({ isLoggedInParent, user }: HeaderProps) {
   ];
 
   socket.emit("register-user", user?._id);
-  console.log("logged in user details:- ", user?._id);
+
 
   return (
     <header className="w-full border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">

@@ -47,23 +47,22 @@ export function ChatList({
   const participantId = conversations?.[0]?.participants?.find(
     (p) => p._id !== currentUserId
   )?._id;
-  console.log("participantId:- ", participantId);
   const [isOnline, setIsOnline] = useState(false);
 
   useEffect(() => {
     if (!participantId) return;
 
-    console.log("checking online status of user:", participantId);
+    
 
     checkUserOnline(participantId).then((status) => {
       setIsOnline(status);
-      console.log(`${participantId} is ${status ? "online" : "offline"}`);
+      
     });
 
     socket.on("user:status", ({ userId: changedUserId, online }) => {
       if (changedUserId === participantId) {
         setIsOnline(online);
-        console.log("Realtime update:", changedUserId, online);
+        
       }
     });
 

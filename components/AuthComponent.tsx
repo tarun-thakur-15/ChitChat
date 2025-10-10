@@ -149,7 +149,7 @@ export default function AuthComponent({ isLoggedInParent, user }: HeaderProps) {
 
   useEffect(() => {
     if (isLoggedInParent && user?._id) {
-      console.log("📢 Registering user with socket:", user._id);
+      
       socket.emit("register-user", user._id);
     }
   }, [isLoggedInParent, user]);

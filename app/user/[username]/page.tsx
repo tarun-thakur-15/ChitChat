@@ -19,7 +19,7 @@ interface PageProps {
 export default async function ProfilePage({ params }: PageProps) {
   const user = await getCurrentUser();
   const profile: UserProfileSchema = (await getUserProfile(params.username))!;
-  console.log("user profile response:- ", profile);
+  
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <div className="max-w-4xl mx-auto p-4">
