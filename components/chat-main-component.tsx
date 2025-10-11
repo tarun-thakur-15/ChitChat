@@ -516,7 +516,7 @@ export default function ChatMainComponent({ userId }: Props) {
             }
           }
         }
-
+        console.log("🟢 Joining conversation:", convId);
         socket.emit("conversation:join", { conversationId: convId });
 
         const handleReceiveMessage = (msg: any) => {
