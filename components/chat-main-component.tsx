@@ -163,7 +163,6 @@ export default function ChatMainComponent({ userId }: Props) {
     };
 
     pc.onconnectionstatechange = () => {
-     
       if (pc.connectionState === "connected") {
         setInCall(true);
         setCallStatus("in-call");
@@ -286,7 +285,6 @@ export default function ChatMainComponent({ userId }: Props) {
       from: string;
       callerName?: string;
     }) => {
-     
       setCallerName(callerName || "Unknown");
       setIsIncomingCall(true);
       setCallStatus("ringing");
@@ -296,7 +294,6 @@ export default function ChatMainComponent({ userId }: Props) {
 
     // Caller side: callee rejected
     const onCallRejected = ({ from }: { from: string }) => {
-    
       setCallStatus("rejected");
       setCallModalOpen(false);
       handleHangUp(false);
@@ -304,14 +301,12 @@ export default function ChatMainComponent({ userId }: Props) {
 
     // Caller side: callee accepted → caller should start offer
     const onCallAccepted = ({ from }: { from: string }) => {
-      
       setCallModalOpen(false);
       // 'from' is callee id; start offer flow
       startCallAfterAccepted(from);
     };
 
     const onOffer = async ({ from, offer }: { from: string; offer: any }) => {
-     
       await handleReceivedOffer(from, offer);
     };
 
@@ -322,7 +317,6 @@ export default function ChatMainComponent({ userId }: Props) {
       from: string;
       answer: any;
     }) => {
-    
       await handleReceivedAnswer(answer);
     };
 
@@ -337,7 +331,6 @@ export default function ChatMainComponent({ userId }: Props) {
     };
 
     const onHangup = ({ from }: { from: string }) => {
-     
       handleHangUp(false);
     };
 
@@ -348,7 +341,6 @@ export default function ChatMainComponent({ userId }: Props) {
       status: string;
       with: string;
     }) => {
-      
       setCallStatus(status as any);
 
       if (status === "rejected") {
@@ -539,6 +531,9 @@ export default function ChatMainComponent({ userId }: Props) {
         };
 
         socket.on("receiveMessage", handleReceiveMessage);
+        socket.on("receiveMessage", (msg) => {
+          console.log("📥 Received in browser:", msg);
+        });
 
         socket.on("messageSeen", ({ messageId }) => {
           setMessages((prev: any) =>
@@ -766,17 +761,13 @@ export default function ChatMainComponent({ userId }: Props) {
   useEffect(() => {
     if (!receiverId) return;
 
-  
-
     checkUserOnline(receiverId).then((status) => {
       setIsOnline(status);
-     
     });
 
     socket.on("user:status", ({ userId: changedUserId, online }) => {
       if (changedUserId === receiverId) {
         setIsOnline(online);
-        
       }
     });
 
