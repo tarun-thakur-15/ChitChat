@@ -75,8 +75,7 @@ const faqs = [
     question: "Will new features be added in the future?",
     answer: (
       <>
-        Yes! ChatShat is an evolving project. Future updates may include read
-        receipts, typing indicators, message reactions, and mobile optimization.
+        Yes! ChatShat is an evolving project. Future updates may include Voice & Video Calling, Status / Stories, message reactions, more Themes, AI Chat Assistant and mobile optimization.
         Stay tuned — it’s just the beginning. 😊
       </>
     ),
