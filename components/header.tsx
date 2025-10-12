@@ -76,21 +76,18 @@ export default function Header({ isLoggedInParent, user }: HeaderProps) {
   };
   const navItems = [
     {
-      id: "/notifications",
-      label: "Notifications",
-      icon: <Users className="w-5 h-5 text-gray-600 dark:text-gray-400" />,
+      id: "/friend-requests",
+      label: "Friend Requests",
     },
-    { id: "/settings", label: "Settings", icon: <Settings /> },
+    { id: "/my-profile", label: "Edit Profile" },
   ];
 
   socket.emit("register-user", user?._id);
-
 
   return (
     <header className="w-full border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
       {isLoggedin && user ? (
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          
           <Link href={"/dashboard"}>
             <Image
               src={ChatShat}
@@ -142,7 +139,7 @@ export default function Header({ isLoggedInParent, user }: HeaderProps) {
                 <span>Edit Profile</span>
               </DropdownMenuItem>
               <DropdownMenuItem
-                onClick={()=> handleLogout(user?._id)}
+                onClick={() => handleLogout(user?._id)}
                 className="flex items-center gap-2 text-red-600 cursor-pointer"
               >
                 <LogOut className="w-4 h-4" />
@@ -187,11 +184,24 @@ export default function Header({ isLoggedInParent, user }: HeaderProps) {
                     {isLoggedInParent && (
                       <>
                         <div className="flex md:hidden items-center space-x-2">
-                          <div className="w-8 h-8 bg-gradient-to-r from-teal-600 to-blue-600 rounded-full flex items-center justify-center">
-                            <User className="h-4 w-4 text-white" />
-                          </div>
+                          <Avatar className="w-6 h-6">
+                            <AvatarImage
+                              src={user.profileImage}
+                              height={40}
+                              width={40}
+                              alt={user.fullName}
+                              className="h-full w-full rounded-full border border-gray-300 dark:border-gray-600 object-cover"
+                            />
+                            <AvatarFallback>
+                              {user.fullName
+                                .split(" ")
+                                .map((n) => n[0])
+                                .join("")}
+                            </AvatarFallback>
+                          </Avatar>
+
                           <span className="block text-sm font-medium text-gray-700 dark:text-white">
-                            User
+                            {user.fullName}
                           </span>
                         </div>
 
@@ -212,7 +222,7 @@ export default function Header({ isLoggedInParent, user }: HeaderProps) {
                         ))}
 
                         <button
-                          onClick={()=> handleLogout(user?._id)}
+                          onClick={() => handleLogout(user?._id)}
                           className="self-stretch border-b-[#edeef0] justify-between items-center inline-flex text-center text-[#1e1f23] text-sm font-medium  tracking-wide dark:text-white"
                         >
                           Logout
