@@ -273,7 +273,7 @@ export default function AuthComponent({ isLoggedInParent, user }: HeaderProps) {
                     className="text-blue-600"
                     onClick={() => setLoginFormLevel(2)}
                   >
-                    forget password?
+                    forgot password?
                   </p>
                 </form>
               ) : loginFormLevel === 2 ? (
