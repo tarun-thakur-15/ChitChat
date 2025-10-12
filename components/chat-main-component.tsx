@@ -672,7 +672,7 @@ export default function ChatMainComponent({ userId }: Props) {
       };
 
       // Show locally instantly
-      setMessages((prev: any) => [...prev, tempMessage]);
+      // setMessages((prev: any) => [...prev, tempMessage]);
       setPreviewOpen(false);
       setSelectedFiles([]);
       scrollToBottom();
@@ -699,7 +699,7 @@ export default function ChatMainComponent({ userId }: Props) {
     } catch (err) {
       console.error("❌ Error sending media:", err);
       // Remove temp message if failed
-      setMessages((prev) => prev.filter((m) => !m.id.startsWith("temp-")));
+      // setMessages((prev) => prev.filter((m) => !m.id.startsWith("temp-")));
     } finally {
       setSendMessageLoading(false);
     }
@@ -719,7 +719,7 @@ export default function ChatMainComponent({ userId }: Props) {
 
       // ✅ Map to ChatMessage before storing
       const newMsg = mapMessage(res.chat, userId);
-      setMessages((prev) => [...prev, newMsg]);
+      // setMessages((prev) => [...prev, newMsg]);
       setMessage("");
       scrollToBottom();
     } catch (err) {
