@@ -45,7 +45,7 @@ const api = axios.create({
 export const signupApi = async (
   data: SignupRequest
 ): Promise<SignupResponse> => {
-  const response = await api.post<SignupResponse>(`${base_url}/signup`, data);
+  const response = await api.post<SignupResponse>(`/signup`, data);
   return response.data;
 };
 
