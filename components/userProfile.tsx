@@ -14,6 +14,7 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { checkUserOnline, socket } from "@/socket";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
+import { startProgress } from "@/app/utils/progress";
 
 type UserProfilePreview = Pick<
   UserProfileSchema,
@@ -189,7 +190,7 @@ export default function UserProfile({
                 {isFriendState ? (
                   // ✅ Already friends → show Chat
                   <motion.button
-                  onClick={()=> router.push("/dashboard")}
+                  onClick={()=> {router.push("/dashboard"), startProgress()}}
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
                     className="flex items-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-xl font-medium transition-colors"
