@@ -5,11 +5,15 @@ import { Check, MessageCircle, UserPlus, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import DefaultCoverImage from "../app/images/defaultCoverPicture.png";
-import { sendFriendRequestApi, acceptFriendRequestApi } from "@/app/services/api";
+import {
+  sendFriendRequestApi,
+  acceptFriendRequestApi,
+} from "@/app/services/api";
 import { UserProfile as UserProfileSchema } from "@/app/services/schema";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { checkUserOnline, socket } from "@/socket";
 import { toast } from "sonner";
+import { useRouter } from "next/navigation";
 
 type UserProfilePreview = Pick<
   UserProfileSchema,
@@ -36,9 +40,13 @@ export default function UserProfile({
   hasReceivedFriendRequest,
   loggedinUserId,
 }: UserProfilePreview) {
+  const router = useRouter();
   const [isFriendState, setIsFriendState] = useState(isFriend);
-  const [hasReceivedRequestState, setHasReceivedRequestState] = useState(hasReceivedFriendRequest);
-  const [hasSendRequestState, setHasSendRequestState] = useState(hasSendFriendRequest);
+  const [hasReceivedRequestState, setHasReceivedRequestState] = useState(
+    hasReceivedFriendRequest
+  );
+  const [hasSendRequestState, setHasSendRequestState] =
+    useState(hasSendFriendRequest);
   const [loading, setLoading] = useState(false);
   const [isOnline, setIsOnline] = useState(false);
 
@@ -102,28 +110,33 @@ export default function UserProfile({
   };
 
   // ✅ Online status tracking
-useEffect(() => {
-  if (!_id) return;
+  useEffect(() => {
+    if (!_id) return;
 
-  // Initial online check
-  checkUserOnline(_id).then((status) => setIsOnline(status));
+    // Initial online check
+    checkUserOnline(_id).then((status) => setIsOnline(status));
 
-  // Define handler
-  const handleUserStatus = ({ userId: changedUserId, online }: { userId: string; online: boolean }) => {
-    if (changedUserId === _id) {
-      setIsOnline(online);
-    }
-  };
+    // Define handler
+    const handleUserStatus = ({
+      userId: changedUserId,
+      online,
+    }: {
+      userId: string;
+      online: boolean;
+    }) => {
+      if (changedUserId === _id) {
+        setIsOnline(online);
+      }
+    };
 
-  // Subscribe to socket updates
-  socket.on("user:status", handleUserStatus);
+    // Subscribe to socket updates
+    socket.on("user:status", handleUserStatus);
 
-  // Clean up only this listener
-  return () => {
-    socket.off("user:status", handleUserStatus);
-  };
-}, [_id]);
-
+    // Clean up only this listener
+    return () => {
+      socket.off("user:status", handleUserStatus);
+    };
+  }, [_id]);
 
   return (
     <motion.div
@@ -176,6 +189,7 @@ useEffect(() => {
                 {isFriendState ? (
                   // ✅ Already friends → show Chat
                   <motion.button
+                  onClick={()=> router.push("/dashboard")}
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
                     className="flex items-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-xl font-medium transition-colors"
